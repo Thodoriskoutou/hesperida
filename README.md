@@ -62,7 +62,7 @@ To keep things simple, [Apprise](https://github.com/caronc/apprise) shall be int
 
 ## Ideas
 
-Things that I don't personally need, but would be helpful to some users. Check the [issues](./issues) for the one you need and like the first post. Don't reply to feature requests unless you have something meaningful to add. If there's no issue yet, open a new one.
+Things that I don't personally need, but would be helpful to some users. Check the [issues](https://github.com/rallisf1/hesperida/issues) for the one you need and like the first post. Don't reply to feature requests unless you have something meaningful to add. If there's no issue yet, open a new one.
 
 ### Probe
 
@@ -145,7 +145,7 @@ axe-core provides an impact rating per rule check, which is scored like this:
 | minor    | 1     |
 
 The total score percentage formula is `100 - (pass_score / (pass_score / error_score))`. Inapplicable and incomplete rule checks are not scored for the time being.
-If you have a better formula submit your [issue](./issues).
+If you have a better formula submit your [issue](https://github.com/rallisf1/hesperida/issues/new).
 
 ### Are the WCAG results reliable?
 
@@ -166,7 +166,7 @@ If I decide to spin up a SaaS, I will write a proprietary kubernetes orchestrato
 
 ### Can you add/change X feature?
 
-Open an [issue](./issues) and we'll see.
+Open an [issue](https://github.com/rallisf1/hesperida/issues/new) and we'll see.
 
 ### How can I contribute?
 
