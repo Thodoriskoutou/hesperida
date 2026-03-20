@@ -51,6 +51,13 @@ To keep things simple, [Apprise](https://github.com/caronc/apprise) shall be int
 4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
 5. While the dashboard is being developed you can use [Surrealist](https://surrealdb.com/surrealist) to connect directly to the database. You'll need to create a user and a website before adding jobs. Take a look at the [schema](./schema.surql) to see the available fields and values. New jobs are automatically picked up by the orchestrator.
 
+### Updating
+
+1. `docker compose --profile aio down` to stop the running containers
+2. `git pull` to pull the latest version
+3. `docker compose --profile tools build` to rebuild the tools
+4. `docker compose --profile aio up -d` to start
+
 ## Known bugs
 
 - Task execution fails more often than not. The hardcoded 1 retry after 5 seconds isn't ideal. I have found 2 culprits so far:
