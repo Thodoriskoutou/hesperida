@@ -1,0 +1,17 @@
+{
+  "name": "hesperida-wcag",
+  "version": "1.0.0",
+  "description": "wcag programmatic checker using axe and docker",
+  "license": "AGPL-3.0-or-later",
+  "author": "rallisf1",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.11.1",
+    "playwright": "^1.58.2",
+    "surrealdb": "^2.0.2"
+  }
+}

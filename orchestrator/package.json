@@ -1,0 +1,15 @@
+{
+  "name": "hesperida-orchestrator",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/dockerode": "^4.0.1",
+    "dockerode": "^4.0.9",
+    "surrealdb": "^2.0.2"
+  }
+}

@@ -1,0 +1,181 @@
+services:
+  probe:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./probe/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+  
+  whois:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./whois/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  ssl:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./ssl/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  domain:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./domain/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+    volumes:
+      - ./data/rdap-cache.json:/rdap-cache.json:rw
+
+  nuclei:
+    restart: never
+    profiles: [test]
+    image: projectdiscovery/nuclei:latest
+
+  seo:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./seo/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  wcag:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./wcag/Dockerfile
+    ipc: host
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+
+  orchestrator:
+    restart: always
+    network_mode: "host"
+    profiles: ["backend", "aio"]
+#    command: ["--rebuild"] # comment this for not to rebuild the tool containers on every orchestrator start
+    depends_on:
+      db:
+        condition: service_healthy
+    build:
+      context: ./
+      dockerfile: ./orchestrator/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./domain:/tools/domain:ro
+      - ./probe:/tools/probe:ro
+      - ./seo:/tools/seo:ro
+      - ./ssl:/tools/ssl:ro
+      - ./wcag:/tools/wcag:ro
+      - ./whois:/tools/whois:ro
+  
+  db:
+    restart: always
+    image: surrealdb/surrealdb:latest
+    profiles: ["database", "aio"]
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_DEFAULT_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DEFAULT_DATABASE=${SURREAL_DATABASE:-main}"
+      - SURREAL_CAPS_ALLOW_EXPERIMENTAL=files
+      - SURREAL_BUCKET_FOLDER_ALLOWLIST=/mydata/screenshots
+      - SURREAL_HIDE_WELCOME=true
+      - SURREAL_NO_BANNER=true
+      - SURREAL_PATH=rocksdb:/mydata/mydatabase.db
+      - "TZ=${TZ:-Europe/Athens}"
+      - "DEBUG=${DEBUG:-false}"
+    command: start
+    user: "1000"
+    ports:
+      - 127.0.0.1:8000:8000 # remove "127.0.0.1:" to make it publically available, not recommended; better use a reverse proxy
+    volumes:
+      - ./data:/mydata
+    healthcheck:
+        test: ["CMD", "/surreal", "is-ready"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+
+  db-init:
+    image: surrealdb/surrealdb:latest
+    profiles: ["database", "aio"]
+    depends_on:
+      db:
+        condition: service_healthy
+    network_mode: "host"
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - SURREAL_HIDE_WELCOME=true
+      - SURREAL_NO_BANNER=true
+      - "DEBUG=${DEBUG:-false}"
+    command: ["import", "-e", "${SURREAL_PROTOCOL}://${SURREAL_ADDRESS}/", "/schema.surql"]
+    volumes:
+      - ./schema.surql:/schema.surql:ro
