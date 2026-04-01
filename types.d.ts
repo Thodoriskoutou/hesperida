@@ -1,7 +1,7 @@
 // @ts-expect-error
 import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where this is loaded
 
-export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security';
+export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
 
 export interface Job {
     id?: RecordId<'jobs'>;
@@ -16,6 +16,7 @@ export interface Job {
     wcag?: RecordId<'wcag_results'>;
     domain?: RecordId<'domain_results'>;
     security?: RecordId<'security_results'>;
+    stress?: RecordId<'stress_results'>;
     created_at?: DateTime;
 }
 
@@ -85,6 +86,17 @@ export interface Domain {
 
 export interface Security {
     id?: RecordId<'security_results'>;
+    job: RecordId<'jobs'>;
+    score: number;
+    passes: number;
+    warnings: number;
+    errors: number;
+    raw: object;
+    created_at?: DateTime;
+}
+
+export interface Stress {
+    id?: RecordId<'stress_results'>;
     job: RecordId<'jobs'>;
     score: number;
     passes: number;

@@ -117,6 +117,31 @@ services:
       - "SECURITY_NIKTO_TIMEOUT=${SECURITY_NIKTO_TIMEOUT:-900}"
       - "SECURITY_SCORE_THRESHOLD=${SECURITY_SCORE_THRESHOLD:-400}"
 
+  stress:
+    restart: never
+    profiles: [tools]
+    network_mode: "host"
+    build:
+      context: ./
+      dockerfile: ./stress/Dockerfile
+    environment:
+      - "SURREAL_USER=${SURREAL_USER:-root}"
+      - "SURREAL_PASS=${SURREAL_PASS:?}"
+      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
+      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
+      - "DEBUG=${DEBUG:-false}"
+      - "STRESS_RATE=${STRESS_RATE:-10}"
+      - "STRESS_DURATION=${STRESS_DURATION:-30s}"
+      - "STRESS_METHOD=${STRESS_METHOD:-GET}"
+      - "STRESS_TIMEOUT=${STRESS_TIMEOUT:-10s}"
+      - "STRESS_WORKERS=${STRESS_WORKERS:-10}"
+      - "STRESS_MAX_WORKERS=${STRESS_MAX_WORKERS:-100}"
+      - "STRESS_HEADERS=${STRESS_HEADERS:-{}}"
+      - "STRESS_BODY=${STRESS_BODY:-}"
+      - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
+
   orchestrator:
     restart: always
     network_mode: "host"
@@ -145,6 +170,7 @@ services:
       - ./wcag:/tools/wcag:ro
       - ./whois:/tools/whois:ro
       - ./security:/tools/security:ro
+      - ./stress:/tools/stress:ro
   
   db:
     restart: always

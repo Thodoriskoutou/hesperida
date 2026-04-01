@@ -15,7 +15,7 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 | WCAG        | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright), [playwright](https://github.com/microsoft/playwright)            | ✅            | Check against Web Accessibility rules (also takes a full-height screenshot)                                             |
 | Whois       | [whois](https://github.com/rfc1036/whois)                           | ✅         | Gets IP whois info                                                                |
 | Security    | [nuclei](https://github.com/projectdiscovery/nuclei), [wapiti](https://github.com/wapiti-scanner/wapiti), [nikto](https://github.com/sullo/nikto) | ✅         | Standard vulnerability scanning                                                   |
-| Stress Test | ?                               | TBA        | HTTP load testing                                                                 |
+| Stress Test | [vegeta](https://github.com/tsenart/vegeta)                               | ✅        | HTTP load testing                                                                 |
 
 ### Dashboard
 
@@ -109,11 +109,7 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 ### Stress Testing
 
-I am between [k6](https://github.com/grafana/k6) and [Vegeta](https://github.com/tsenart/vegeta). k6 is more feature complete, but requires coded templates.
-
-### Security Scaning
-
-I am currently struggling with [nuclei](https://github.com/projectdiscovery/nuclei), while also exploring alternatives.
+[k6](https://github.com/grafana/k6) could be added to address complex workflows (e.g. login).
 
 ## Hardware Requirements
 
