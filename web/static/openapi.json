@@ -1,0 +1,815 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Hesperida API",
+    "version": "0.4.0",
+    "description": "Web App Scanner"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Development"
+    }
+  ],
+  "paths": {
+    "/api/v1/websites": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "List websites for the current user",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Create a website",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url",
+                  "description"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Website created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/websites/{id}": {
+      "get": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Get a website by id",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website details"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Update a website",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Website updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Websites"
+        ],
+        "summary": "Delete a website",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Website deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get current user profile",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update current user profile",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/v1/results/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Results"
+        ],
+        "summary": "Get aggregated results for a job",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregated results"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/results/jobs/{id}/{tool}": {
+      "get": {
+        "tags": [
+          "Results"
+        ],
+        "summary": "Get a specific tool result for a job",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tool",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "probe",
+                "seo",
+                "ssl",
+                "wcag",
+                "whois",
+                "domain",
+                "security",
+                "stress"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tool result"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List jobs for the current user",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job list"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Create a new scan job",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "website",
+                  "types"
+                ],
+                "properties": {
+                  "website": {
+                    "type": "string"
+                  },
+                  "types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "options": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get a job by id",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/job-queue": {
+      "get": {
+        "tags": [
+          "JobQueue"
+        ],
+        "summary": "List queue tasks for the current user",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue task list"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/job-queue/{id}": {
+      "get": {
+        "tags": [
+          "JobQueue"
+        ],
+        "summary": "Get a queue task by id",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Queue task"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/job-queue/{id}/cancel": {
+      "post": {
+        "tags": [
+          "JobQueue"
+        ],
+        "summary": "Cancel a waiting queue task",
+        "security": [
+          {
+            "apiKeyAuth": [],
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task canceled"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Signup failed"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out and clear session cookie",
+        "responses": {
+          "200": {
+            "description": "Signed out"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/signin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get current authenticated user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": [
+          "ok",
+          "error",
+          "request_id"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": false
+          },
+          "request_id": {
+            "type": "string",
+            "example": "req_01HXYZABC123"
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "unauthorized"
+              },
+              "message": {
+                "type": "string",
+                "example": "Missing or invalid x-api-key header."
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request payload or parameters.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "examples": {
+              "invalid_payload": {
+                "value": {
+                  "ok": false,
+                  "request_id": "req_01HXYZABC123",
+                  "error": {
+                    "code": "bad_request",
+                    "message": "Invalid payload."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid authentication credentials.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "examples": {
+              "unauthorized": {
+                "value": {
+                  "ok": false,
+                  "request_id": "req_01HXYZABC123",
+                  "error": {
+                    "code": "unauthorized",
+                    "message": "Authentication required."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated but not allowed to access this resource.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "examples": {
+              "forbidden": {
+                "value": {
+                  "ok": false,
+                  "request_id": "req_01HXYZABC123",
+                  "error": {
+                    "code": "forbidden",
+                    "message": "Access denied."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested resource was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "examples": {
+              "not_found": {
+                "value": {
+                  "ok": false,
+                  "request_id": "req_01HXYZABC123",
+                  "error": {
+                    "code": "not_found",
+                    "message": "Resource not found."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Resource state conflicts with requested operation.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "examples": {
+              "conflict": {
+                "value": {
+                  "ok": false,
+                  "request_id": "req_01HXYZABC123",
+                  "error": {
+                    "code": "conflict",
+                    "message": "Resource state conflict."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "apiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Shared application API key required for non-auth API endpoints."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "SurrealDB user session token (Bearer) or equivalent authenticated cookie session."
+      }
+    }
+  }
+}

@@ -1,0 +1,83 @@
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Shared application API key required for non-auth API endpoints.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: SurrealDB user session token (Bearer) or equivalent authenticated cookie session.
+  responses:
+    BadRequest:
+      description: Invalid request payload or parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            invalid_payload:
+              value:
+                ok: false
+                request_id: req_01HXYZABC123
+                error:
+                  code: bad_request
+                  message: Invalid payload.
+    Unauthorized:
+      description: Missing or invalid authentication credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            unauthorized:
+              value:
+                ok: false
+                request_id: req_01HXYZABC123
+                error:
+                  code: unauthorized
+                  message: Authentication required.
+    Forbidden:
+      description: Authenticated but not allowed to access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            forbidden:
+              value:
+                ok: false
+                request_id: req_01HXYZABC123
+                error:
+                  code: forbidden
+                  message: Access denied.
+    NotFound:
+      description: Requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            not_found:
+              value:
+                ok: false
+                request_id: req_01HXYZABC123
+                error:
+                  code: not_found
+                  message: Resource not found.
+    Conflict:
+      description: Resource state conflicts with requested operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            conflict:
+              value:
+                ok: false
+                request_id: req_01HXYZABC123
+                error:
+                  code: conflict
+                  message: Resource state conflict.

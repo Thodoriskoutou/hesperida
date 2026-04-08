@@ -1,0 +1,56 @@
+import { env } from '$env/dynamic/private';
+
+export type AppMode = 'both' | 'api' | 'dashboard';
+
+const REQUIRED_IN_API_MODE = ['SURREAL_USER', 'SURREAL_PASS', 'SURREAL_NAMESPACE', 'SURREAL_DATABASE', 'SURREAL_ADDRESS', 'SURREAL_PROTOCOL'] as const;
+
+const read = (name: string): string => env[name]?.trim() ?? '';
+
+const appModeRaw = (read('APP_MODE') || 'both').toLowerCase();
+if (!['both', 'api', 'dashboard'].includes(appModeRaw)) {
+	throw new Error(`Invalid APP_MODE: ${appModeRaw}. Expected one of both|api|dashboard.`);
+}
+
+const appMode = appModeRaw as AppMode;
+const apiUrl = read('API_URL');
+const apiKey = read('API_KEY');
+const webApiKey = read('WEB_API_KEY');
+
+const surrealProtocol = read('SURREAL_PROTOCOL') || 'http';
+const wsProtocol = surrealProtocol === 'https' ? 'wss' : 'ws';
+
+export const config = {
+	appMode,
+	apiUrl,
+	apiKey,
+	webApiKey,
+	surrealUser: read('SURREAL_USER'),
+	surrealPass: read('SURREAL_PASS'),
+	surrealNamespace: read('SURREAL_NAMESPACE') || 'main',
+	surrealDatabase: read('SURREAL_DATABASE') || 'main',
+	surrealAddress: read('SURREAL_ADDRESS') || '127.0.0.1:8000',
+	surrealProtocol,
+	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || '127.0.0.1:8000'}`,
+	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
+	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
+	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60 * 24 * 7}`, 10),
+	debug: (read('DEBUG') || 'false').toLowerCase() === 'true'
+} as const;
+
+export const getMissingRequiredEnv = (): string[] => {
+	const missing: string[] = [];
+
+	if (config.appMode === 'dashboard') {
+		if (!config.apiUrl) missing.push('API_URL');
+		if (!config.apiKey) missing.push('API_KEY');
+	}
+
+	if (config.appMode === 'api' || config.appMode === 'both') {
+		if (!config.webApiKey) missing.push('WEB_API_KEY');
+		for (const key of REQUIRED_IN_API_MODE) {
+			if (!read(key)) missing.push(key);
+		}
+	}
+
+	return [...new Set(missing)];
+};

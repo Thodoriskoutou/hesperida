@@ -37,7 +37,7 @@ export interface Queue {
     attempts?: number;
     next_run_at?: DateTime;
     target: string;
-    status: 'pending' | 'waiting' | 'processing' | 'completed' | 'failed';
+    status: 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
     created_at?: DateTime;
 }
 

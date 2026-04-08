@@ -67,8 +67,8 @@ DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THE
 DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS FOR delete NONE, FOR select, update, create WHERE website.user = $auth.id;
 
 DEFINE FIELD IF NOT EXISTS created_at ON jobs TYPE datetime DEFAULT time::now() READONLY;
-DEFINE FIELD OVERWRITE options ON jobs TYPE option<object>;
-DEFINE FIELD OVERWRITE status ON jobs TYPE string DEFAULT pending ASSERT ['pending', 'processing', 'completed', 'failed'].includes($value);
+DEFINE FIELD OVERWRITE options ON jobs TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE status ON jobs TYPE string DEFAULT 'pending' ASSERT ['pending', 'processing', 'completed', 'failed'].includes($value);
 DEFINE FIELD OVERWRITE types ON jobs TYPE array<string> DEFAULT ['probe'] ASSERT !array::is_empty(array::intersect($value, ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress']));
 DEFINE FIELD IF NOT EXISTS types.* ON jobs TYPE string;
 DEFINE FIELD IF NOT EXISTS website ON jobs TYPE record<websites> ASSERT record::exists($value);
@@ -136,8 +136,12 @@ DEFINE FIELD IF NOT EXISTS job ON job_queue TYPE record<jobs>;
 DEFINE FIELD IF NOT EXISTS next_run_at ON job_queue TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE options ON job_queue TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
-DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT pending ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed'];
+DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT pending ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed', 'canceled'];
 DEFINE FIELD IF NOT EXISTS target ON job_queue TYPE string;
+
+DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' AND $before.status != 'canceled' AND $after.status = 'canceled' THEN {
+    UPDATE jobs SET status = 'failed' WHERE id = $after.job AND status != 'completed';
+};
 
 
 -- ------------------------------

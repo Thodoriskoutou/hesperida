@@ -33,9 +33,6 @@ if [ -z "$JOB_ID" ]; then
   exit 1
 fi
 
-printf 'STRESS_HEADERS=<%s>\n' "$STRESS_HEADERS"
-echo "$STRESS_HEADERS" | jq -e 'type=="object"'
-
 if ! echo "$STRESS_HEADERS" | jq -e 'type == "object"' >/dev/null 2>&1; then
   echo "Invalid STRESS_HEADERS value. Expected a JSON object."
   exit 1

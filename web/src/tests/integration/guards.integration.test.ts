@@ -1,0 +1,70 @@
+import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
+import { ensureSchema, resetData } from '../helpers/db';
+import { ApiTestClient, randomEmail } from '../helpers/request';
+
+const signup = async () => {
+	const email = randomEmail('guard_user');
+	const password = 'pass12345';
+	const authClient = new ApiTestClient({ apiKey: null });
+	const res = await authClient.call({
+		method: 'POST',
+		path: '/api/v1/auth/signup',
+		body: { name: 'Guard User', email, password }
+	});
+	return { token: res.json?.data?.token as string, email, password };
+};
+setDefaultTimeout(30_000);
+
+describe('API Guard Integration', () => {
+	beforeAll(async () => {
+		await ensureSchema();
+	});
+
+	beforeEach(async () => {
+		await resetData();
+	});
+
+	test('protected routes require x-api-key', async () => {
+		const { token } = await signup();
+		const client = new ApiTestClient({ apiKey: null, bearerToken: token });
+		const { response, json } = await client.call({ method: 'GET', path: '/api/v1/jobs' });
+
+		expect(response.status).toBe(401);
+		expect(json.ok).toBeFalse();
+		expect(json.error.code).toBe('unauthorized');
+		expect(json.error.message).toContain('x-api-key');
+	});
+
+	test('protected routes require valid user auth', async () => {
+		const client = new ApiTestClient();
+		const { response, json } = await client.call({ method: 'GET', path: '/api/v1/jobs' });
+
+		expect(response.status).toBe(401);
+		expect(json.ok).toBeFalse();
+		expect(json.error.code).toBe('unauthorized');
+		expect(json.error.message).toContain('Authentication required');
+	});
+
+	test('auth routes are exempt from x-api-key requirement', async () => {
+		const client = new ApiTestClient({ apiKey: null });
+		const email = randomEmail('auth_exempt');
+		const { response, json } = await client.call({
+			method: 'POST',
+			path: '/api/v1/auth/signup',
+			body: { name: 'Auth Exempt User', email, password: 'pass12345' }
+		});
+
+		expect(response.status).toBe(201);
+		expect(json.ok).toBeTrue();
+		expect(json.data.user.email).toBe(email);
+	});
+
+	test('protected route succeeds when both API key and bearer token are present', async () => {
+		const { token } = await signup();
+		const client = new ApiTestClient({ bearerToken: token });
+		const listJobs = await client.call({ method: 'GET', path: '/api/v1/jobs' });
+		expect(listJobs.response.status).toBe(200);
+		expect(listJobs.json.ok).toBeTrue();
+		expect(Array.isArray(listJobs.json.data.jobs)).toBeTrue();
+	});
+});
