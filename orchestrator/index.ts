@@ -1,10 +1,11 @@
 import { setInterval, clearInterval } from 'node:timers';
-import {DateTime, RecordId, Surreal, Table, eq} from 'surrealdb';
+import { DateTime, RecordId, Surreal, Table, eq } from 'surrealdb';
 import Dockerode from 'dockerode';
 import type { Job, Queue, Tool, Website } from './types';
 import { slowTools, tools } from './constants';
 import { readdir } from "node:fs/promises";
 import { PassThrough } from 'node:stream';
+import { hostname } from 'node:os';
 
 const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
@@ -50,6 +51,23 @@ for (const tool of tools) {
         });
     }
 }
+
+const resolveDockerNetwork = async (): Promise<string> => {
+    const selfContainerId = hostname();
+    try {
+        const selfContainer = await docker.getContainer(selfContainerId).inspect();
+        const networks = Object.keys(selfContainer.NetworkSettings?.Networks ?? {});
+        if (networks.length) {
+            const RESOLVED_DOCKER_NETWORK = networks[0]!;
+            if (DEBUG) console.debug(`Auto-detected Docker network: ${RESOLVED_DOCKER_NETWORK}`);
+            return RESOLVED_DOCKER_NETWORK;
+        }
+    } catch (error) {
+        throw new Error('Failed to auto-detect orchestrator Docker network. Error: ' + (error as Error).message);
+    }
+    return ''; // makes ts happy
+}
+const DOCKER_NETWORK = await resolveDockerNetwork();
 
 const db = new Surreal();
 await db.connect(`${Bun.env.SURREAL_PROTOCOL === 'https' ? 'wss': 'ws'}://${Bun.env.SURREAL_ADDRESS}`, {
@@ -105,16 +123,14 @@ const getWcagDevices = (wcagOptions: Record<string, unknown> | undefined): strin
     const devices = wcagOptions.devices;
     if(!Array.isArray(devices)) return [DEFAULT_DEVICE];
 
-    const seen = new Set<string>();
-    const normalized: string[] = [];
+    const trueDevices = new Set<string>();
     for (const device of devices) {
         if(typeof device !== 'string') continue;
         const item = device.trim();
-        if(!item.length || seen.has(item)) continue;
-        seen.add(item);
-        normalized.push(item);
+        if(!item.length) continue;
+        trueDevices.add(item);
     }
-    return normalized.length ? normalized : [DEFAULT_DEVICE];
+    return trueDevices.size ? [...trueDevices] : [DEFAULT_DEVICE];
 }
 
 const getWcagTaskEnvOptions = (wcagOptions: Record<string, unknown> | undefined): Record<string, unknown> => {
@@ -143,7 +159,7 @@ const getRetryBackoffMs = (attemptNumber: number): number => {
     return RETRY_BACKOFF_MS[index]!;
 }
 
-const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<boolean> => {
+const runTask = async (task: Partial<Queue>, task_id: RecordId | null, task_url: string): Promise<boolean> => {
     if(DEBUG) console.debug(`Runner started for ${task_id} with data: ${JSON.stringify(task)}`);
     let attemptNumber = task.attempts ?? 0;
     if(task_id) {
@@ -156,13 +172,20 @@ const runTask = async (task: Partial<Queue>, task_id: RecordId | null): Promise<
     if(slowTools.includes(task.type as Tool)) RUNNERS++;
 
     let runSuccessfully = false;
+
     const Env = task.options ? [...ENV, ...parseTaskOptions(task.options)] : ENV;
+    let executionTarget = task.target ?? task_url;
+    if(task.type === 'wcag') {
+        Env.push(`WCAG_DEVICE_NAME=${task.target}`);
+        executionTarget = task_url;
+    }
+
     try {
         const container = await docker.createContainer({
             Image: `hesperida-${task.type}`,
-            Cmd: [task.target!, (task.job as RecordId).toString()],
+            Cmd: [executionTarget, task.job!.toString()],
             HostConfig: {
-                NetworkMode: 'host',
+                NetworkMode: DOCKER_NETWORK,
                 IpcMode: task.type === 'wcag' ? 'host' : 'private'
             },
             Env
@@ -222,11 +245,13 @@ if(DEBUG) console.debug('Setting up deferred tasks checker...');
 
 const waitingInterval = setInterval(async () => {
     if(RUNNERS < NUMCORES) {
-        const [tasks] = await db.query(
-            'SELECT * FROM job_queue WHERE status = $status AND (next_run_at = NONE OR next_run_at <= time::now()) ORDER BY next_run_at ASC LIMIT 1',
+        const [tasks] = await db.query<[(Queue & { job: { id: RecordId, website: { url: string } } })[]]>(
+            'SELECT *, job.id, job.website.url FROM job_queue WHERE status = $status AND next_run_at <= time::now() ORDER BY next_run_at ASC LIMIT 1',
             { status: 'waiting' }
-        ).collect<[Queue[]]>();
-        if(tasks.length) await runTask(tasks[0], tasks[0].id);
+        ).collect();
+        if(tasks.length) {
+            await runTask({ ...tasks[0]!, job: tasks[0]?.job.id as RecordId<"jobs"> }, tasks[0]?.id!, tasks[0]?.job.website.url!);
+        }
     }
 }, 1000 * 5); // every 5 seconds
 
@@ -241,7 +266,8 @@ newTasks.subscribe(async ({action, value, recordId}) => {
                 next_run_at: new DateTime(new Date().toISOString())
             });
         } else {
-            await runTask(value, recordId);
+            const [result] = await db.query<{ website: Website }[][]>('SELECT website.* FROM jobs WHERE id = $id', { id: value.job }).collect();
+            await runTask(value, recordId, result![0]!.website.url);
         }
     } else {
         console.warn(`${action} triggered for status ${value.status} on ${recordId}. This shouldn't happen!`);
@@ -256,15 +282,14 @@ newJobs.subscribe(async ({action, value, recordId}) => {
         await db.update<Job>(recordId).merge({
             status: 'processing'
         });
-        const website = await db.select<Website>(value.website as Job["website"]);
-        const task: Queue = {
-            job: recordId,
-            type: 'probe',
-            target: website?.url
+        const website = await db.select<Website>(value.website as RecordId);
+        const task: Partial<Queue> = {
+            job: recordId as RecordId<"jobs">,
+            type: 'probe'
         }
         const probeOptions = getToolTaskOptions(value.options, 'probe');
         if(probeOptions) task.options = probeOptions;
-        const probeSuccess = await runTask(task, null);
+        const probeSuccess = await runTask(task, null, website!.url);
         if(!probeSuccess) {
             await db.update<Job>(recordId).merge({
                 status: 'failed'
@@ -273,18 +298,18 @@ newJobs.subscribe(async ({action, value, recordId}) => {
             for (const tool of value.types as Tool[]) {
                 if(tool === 'probe') continue;
                 if(tool === 'whois') {
-                    const [result] = await db.query(`SELECT array::flatten(
+                    const [result] = await db.query<[{ip:string[]}[]]>(`SELECT array::flatten(
                             array::concat(
                                 ipv4 ?? [],
                                 ipv6 ?? []
                             )
                         ) AS ip
                         FROM probe_results
-                        WHERE job = $job_id;`, { job_id:  recordId }).collect<[{ip:string[]}[]]>();
+                        WHERE job = $job_id;`, { job_id:  recordId }).collect();
                     const IPs = result.length ? result[0]!.ip : [];
                     for (const IP of IPs) {
-                        const task: Queue = {
-                            job: recordId,
+                        const task: Partial<Queue> = {
+                            job: recordId as RecordId<"jobs">,
                             type: tool,
                             status: 'pending',
                             target: IP,
@@ -299,25 +324,23 @@ newJobs.subscribe(async ({action, value, recordId}) => {
                     const devices = getWcagDevices(wcagOptions);
                     const wcagEnvOptions = getWcagTaskEnvOptions(wcagOptions);
                     for (const device of devices) {
-                        const task: Queue = {
-                            job: recordId,
+                        const task: Partial<Queue> = {
+                            job: recordId as RecordId<"jobs">,
                             type: tool,
                             status: 'pending',
-                            target: website?.url,
+                            target: device,
                             attempts: 0,
                             options: {
-                                ...wcagEnvOptions,
-                                WCAG_DEVICE_NAME: device
+                                ...wcagEnvOptions
                             }
                         }
                         await db.create<Queue>(queue).content(task);
                     }
                 } else {
-                    const task: Queue = {
-                        job: recordId,
+                    const task: Partial<Queue> = {
+                        job: recordId as RecordId<"jobs">,
                         type: tool,
                         status: 'pending',
-                        target: website?.url,
                         attempts: 0
                     }
                     const toolOptions = getToolTaskOptions(value.options, tool);

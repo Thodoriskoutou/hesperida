@@ -19,6 +19,13 @@ const appriseUrl = read('APPRISE_URL');
 const appriseApiKey = read('APPRISE_API_KEY');
 const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
 const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
+const websiteVerificationTtlRaw = read('WEBSITE_VERIFICATION_TTL_SECONDS') || '604800';
+const websiteVerificationTtlSeconds = Number.parseInt(websiteVerificationTtlRaw, 10);
+if (!Number.isFinite(websiteVerificationTtlSeconds) || websiteVerificationTtlSeconds < 1) {
+	throw new Error(
+		`Invalid WEBSITE_VERIFICATION_TTL_SECONDS: ${websiteVerificationTtlRaw}. Expected a positive integer.`
+	);
+}
 
 const surrealProtocol = read('SURREAL_PROTOCOL') || 'http';
 const wsProtocol = surrealProtocol === 'https' ? 'wss' : 'ws';
@@ -32,13 +39,14 @@ export const config = {
 	appriseApiKey,
 	notificationEmailTargetTemplate,
 	notificationBrandLogoUrl,
+	websiteVerificationTtlSeconds,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),
 	surrealNamespace: read('SURREAL_NAMESPACE') || 'main',
 	surrealDatabase: read('SURREAL_DATABASE') || 'main',
-	surrealAddress: read('SURREAL_ADDRESS') || '127.0.0.1:8000',
+	surrealAddress: read('SURREAL_ADDRESS') || 'db:8000',
 	surrealProtocol,
-	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || '127.0.0.1:8000'}`,
+	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || 'db:8000'}`,
 	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
 	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
 	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60}`, 10),

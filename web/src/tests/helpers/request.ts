@@ -10,6 +10,7 @@ import * as websites from '../../routes/api/v1/websites/+server';
 import * as websiteById from '../../routes/api/v1/websites/[id]/+server';
 import * as websiteInvite from '../../routes/api/v1/websites/[id]/invite/+server';
 import * as websiteUninvite from '../../routes/api/v1/websites/[id]/uninvite/+server';
+import * as websiteVerify from '../../routes/api/v1/websites/[id]/verify/+server';
 
 import * as jobs from '../../routes/api/v1/jobs/+server';
 import * as jobById from '../../routes/api/v1/jobs/[id]/+server';
@@ -50,6 +51,7 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/websites$/, module: websites },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/uninvite$/, module: websiteUninvite },
+	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/verify$/, module: websiteVerify },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)$/, module: websiteById },
 	{ regex: /^\/api\/v1\/jobs$/, module: jobs },
 	{ regex: /^\/api\/v1\/jobs\/(?<id>[^/]+)\/queue$/, module: jobQueueByJob },

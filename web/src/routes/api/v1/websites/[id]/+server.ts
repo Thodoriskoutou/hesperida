@@ -66,7 +66,6 @@ export const GET: RequestHandler = async (event) => {
  *             properties:
  *               url: { type: string }
  *               description: { type: string }
- *               verified: { type: boolean }
  *     responses:
  *       200:
  *         description: Website updated
@@ -93,10 +92,9 @@ export const PATCH: RequestHandler = async (event) => {
 	const patch: Record<string, unknown> = {};
 	if (typeof payload.url === 'string') patch.url = payload.url.trim();
 	if (typeof payload.description === 'string') patch.description = payload.description.trim();
-	if (typeof payload.verified === 'boolean') patch.verified = payload.verified;
 
 	if (!Object.keys(patch).length) {
-		return jsonError(event, 400, 'bad_request', 'At least one updatable field is required (url, description, verified).');
+		return jsonError(event, 400, 'bad_request', 'At least one updatable field is required (url, description).');
 	}
 
 	try {

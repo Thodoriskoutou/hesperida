@@ -7,9 +7,9 @@ export default defineConfig({ plugins: [
     openapiPlugin({
         // OpenAPI info section
         info: {
-            title: 'Hesperida API',
-            version: '0.4.0',
-            description: 'Web App Scanner'
+            title: 'Hesperida Web App Scanner API',
+            version: '0.4.1',
+            description: 'Use WEB_API_KEY in an x-api-key header, and the token from auth signin/signup in a Bearer Authentication header'
         },
         servers: [
             { url: 'http://localhost:3000', description: 'Development' }

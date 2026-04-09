@@ -10,7 +10,7 @@ Bun.env.WEB_API_KEY = Bun.env.WEB_API_KEY?.trim() || 'test-web-api-key';
 Bun.env.SURREAL_USER = Bun.env.SURREAL_USER?.trim() || 'root';
 Bun.env.SURREAL_PASS = Bun.env.SURREAL_PASS?.trim() || 'root';
 Bun.env.SURREAL_PROTOCOL = Bun.env.SURREAL_PROTOCOL?.trim() || 'http';
-Bun.env.SURREAL_ADDRESS = Bun.env.SURREAL_ADDRESS?.trim() || '127.0.0.1:8000';
+Bun.env.SURREAL_ADDRESS = Bun.env.SURREAL_ADDRESS?.trim() || 'db:8000';
 Bun.env.DEBUG = Bun.env.DEBUG?.trim() || 'false';
 Bun.env.APPRISE_URL = Bun.env.APPRISE_URL?.trim() || 'http://apprise.test';
 Bun.env.APPRISE_API_KEY = Bun.env.APPRISE_API_KEY?.trim() || '';
@@ -29,6 +29,30 @@ mock.module('$env/dynamic/private', () => ({ env: Bun.env }));
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const mockedFetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 	const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+	const parsed = (() => {
+		try {
+			return new URL(url);
+		} catch {
+			return null;
+		}
+	})();
+
+	if (
+		parsed &&
+		parsed.hostname === 'cloudflare-dns.com' &&
+		parsed.pathname === '/dns-query' &&
+		parsed.searchParams.get('type') === 'TXT'
+	) {
+		return Response.json({ Status: 3, Answer: [] }, { status: 200 });
+	}
+
+	if (parsed && parsed.hostname.endsWith('.invalid') && parsed.pathname.startsWith('/hesperida-')) {
+		return new Response('Not Found', { status: 404 });
+	}
+
+	if (parsed && parsed.hostname.endsWith('.example.test') && parsed.pathname.startsWith('/hesperida-')) {
+		return new Response('', { status: 200 });
+	}
 
 	if (url.startsWith(Bun.env.APPRISE_URL || '')) {
 		const payloadRaw = typeof init?.body === 'string' ? init.body : '';

@@ -27,11 +27,11 @@ A Sveltekit dashboard is under construction (TBA). The main functionality shall 
 
 ### API
 
-All the dashboard functionality will be available through openapi (TBA).
+All the dashboard functionality is available through [OpenAPI](http://localhost:3000/api).
 
 ### Alerts & Webhooks
 
-[Apprise](https://github.com/caronc/apprise) is now integrated for API notifications (forgot password + website invites).  
+[Apprise](https://github.com/caronc/apprise) is now integrated for notification messages and emails.
 In this phase, notification targets are user-level settings stored in `users.notification_targets`.
 
 ## Tech Stack
@@ -50,14 +50,15 @@ In this phase, notification targets are user-level settings stored in `users.not
   - With SurrealDB SaaS
   `docker compose run --rm db-init && docker compose --profile backend up -d`
 4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
-5. While the dashboard is being developed you can use [Surrealist](https://surrealdb.com/surrealist) to connect directly to the database. You'll need to create a user and a website before adding jobs. Take a look at the [schema](./schema.surql) to see the available fields and values. New jobs are automatically picked up by the orchestrator.
+5. While the dashboard is being developed you can use the [API](http://localhost:3000/api). New jobs are automatically picked up by the orchestrator.
 
 ### Updating
 
 1. `docker compose --profile aio down` to stop the running containers
 2. `git pull` to pull the latest version
 3. `docker compose --profile tools build` to rebuild the tools
-4. `docker compose --profile aio up -d` to start
+4. `docker compose build orchestrator` to rebuild the orchestrator
+5. `docker compose --profile aio up -d` to start
 
 ## Known bugs
 
@@ -66,6 +67,7 @@ In this phase, notification targets are user-level settings stored in `users.not
   2. Not enough resources, upgrade your host
 - There is no cleanup cron for the `job_queue` yet (TODO)
 - Orphan containers may be left behind if the orchestrator crashes. When I tried using `AutoRemove: true` in the container settings the containers exited before finishing. AFAIK it's a bug with Bun. This is not a big deal as they're not left running, but a cleanup cron will be needed for those as well. (TODO)
+- The `orchestrator` and `wcag` containers appear stuck when they can't connect to the database due to the infinite reconnect attempts
 
 ## Ideas
 
@@ -94,7 +96,7 @@ Things that I don't personally need, but would be helpful to some users. Check t
 
 1. Generate a PDF report
 2. Public dashboards (e.g. to share with a client/colleague)
-3. ACL/Teams/sub-accounts
+3. Better ACL/Teams/sub-accounts
 4. AI assistant to help you fix any errors found
 
 ### API
@@ -176,11 +178,11 @@ That said; score calculations used by Hesperida can change between configuration
 
 ### Can I scan any website I want or just my own?
 
-There will be a DNS and/or HTTP verification process through the API and Dashboard, but since none of those exist yet; you can scan anything.
+A DNS / web root file verification process has been added in v0.4.1, thus you can only scan websites you have access to their DNS zones or web root.
 
 ### Can I use it in a CI/CD pipeline?
 
-Yes, as soon as the API is available.
+Yes, as long as you use a proper (a.k.a. with a live domain) staging environment.
 
 ### Can I run my own SaaS out of this?
 

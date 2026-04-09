@@ -2,15 +2,14 @@
 import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where this is loaded
 
 export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
-export type QueueTool = Exclude<Tool, 'probe'>;
 
 export interface NotificationTarget {
     id: string;
     target: string;
     label?: string | null;
     enabled: boolean;
-    created_at: DateTime | string;
-    updated_at: DateTime | string;
+    created_at: DateTime;
+    updated_at: DateTime;
 }
 
 export interface User {
@@ -47,18 +46,19 @@ export interface Website {
     users: RecordId<'users'>[];
     description: string;
     url: string;
-    verified: boolean;
+    verification_code: string;
+    verified_at?: DateTime;
     created_at?: DateTime;
 }
 
 export interface Queue {
     id?: RecordId<'job_queue'>;
     job: RecordId<'jobs'>;
-    type: QueueTool;
+    type: Tool;
     options?: Record<string, unknown>;
     attempts: number;
     next_run_at: DateTime;
-    target: string;
+    target?: string;
     status: 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
     created_at?: DateTime;
 }

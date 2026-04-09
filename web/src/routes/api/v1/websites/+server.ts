@@ -4,6 +4,7 @@ import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { canCreateWebsite, isAdmin } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { parsePaginationParams } from '$lib/server/pagination';
+import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
 
 /**
  * @swagger
@@ -93,7 +94,6 @@ export const GET: RequestHandler = async (event) => {
  *             properties:
  *               url: { type: string }
  *               description: { type: string }
- *               verified: { type: boolean }
  *     responses:
  *       201:
  *         description: Website created
@@ -115,7 +115,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const url = typeof payload.url === 'string' ? payload.url.trim() : '';
 		const description = typeof payload.description === 'string' ? payload.description.trim() : '';
-		const verified = typeof payload.verified === 'boolean' ? payload.verified : false;
+		const verificationCode = generateWebsiteVerificationCode();
 
 		if (!url || !description) {
 			return jsonError(event, 400, 'bad_request', 'url and description are required.');
@@ -125,8 +125,8 @@ export const POST: RequestHandler = async (event) => {
 			const website = await withAdminDb((db) =>
 				queryOne(
 					db,
-					'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verified: $verified } RETURN AFTER;',
-					{ user: auth.user.id, url, description, verified }
+					'CREATE websites CONTENT { owner: type::record($user), users: [type::record($user)], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
+					{ user: auth.user.id, url, description, verificationCode }
 				)
 			);
 

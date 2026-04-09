@@ -67,11 +67,13 @@ DEFINE FIELD IF NOT EXISTS description ON websites TYPE string;
 DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::exists($value);
 DEFINE FIELD IF NOT EXISTS url ON websites TYPE string ASSERT string::is_url($value);
 DEFINE FIELD IF NOT EXISTS users ON websites TYPE array<record<users>>;
-DEFINE FIELD IF NOT EXISTS verified ON websites TYPE bool DEFAULT false;
+DEFINE FIELD IF NOT EXISTS verification_code ON websites TYPE string;
+DEFINE FIELD IF NOT EXISTS verified_at ON websites TYPE option<datetime>;
 
 DEFINE INDEX IF NOT EXISTS url_idx ON websites FIELDS url UNIQUE;
 DEFINE INDEX IF NOT EXISTS owner_websites_idx ON websites FIELDS owner;
 DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
+DEFINE INDEX IF NOT EXISTS verified_at_websites_idx ON websites FIELDS verified_at;
 
 DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THEN { DELETE jobs WHERE website = $before.id };
 
@@ -153,7 +155,7 @@ DEFINE FIELD IF NOT EXISTS next_run_at ON job_queue TYPE datetime DEFAULT time::
 DEFINE FIELD OVERWRITE options ON job_queue TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
 DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed', 'canceled'];
-DEFINE FIELD IF NOT EXISTS target ON job_queue TYPE string;
+DEFINE FIELD OVERWRITE target ON job_queue TYPE option<string>;
 
 DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' AND $before.status != 'canceled' AND $after.status = 'canceled' THEN {
     UPDATE jobs SET status = 'failed' WHERE id = $after.job AND status != 'completed';

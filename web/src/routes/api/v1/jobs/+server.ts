@@ -4,8 +4,9 @@ import { queryMany, queryOne, toRecordId, withAdminDb, withUserDb } from '$lib/s
 import { canCreateJob, isAdmin } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { tools as ALLOWED_TOOLS } from '$lib/constants';
-import type { Tool } from '$lib/types';
+import type { Tool, Website } from '$lib/types';
 import { parsePaginationParams } from '$lib/server/pagination';
+import { verifyWebsiteOwnership } from '$lib/server/website-verification';
 
 /**
  * @swagger
@@ -99,6 +100,8 @@ export const GET: RequestHandler = async (event) => {
  *         description: Job created
  *       400:
  *         $ref: '#/components/responses/BadRequest'
+ *       403:
+ *         $ref: '#/components/responses/Unauthorized'
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
@@ -122,12 +125,12 @@ export const POST: RequestHandler = async (event) => {
 		if (!website) return jsonError(event, 400, 'bad_request', 'website is required.');
 		if (!types.length) return jsonError(event, 400, 'bad_request', 'types must include at least one valid tool.');
 
-		const websiteRow = await withAdminDb((db) =>
-			queryOne(
+		let websiteRow = await withAdminDb((db) =>
+			queryOne<Website>(
 				db,
 				isAdmin(auth.user)
-					? 'SELECT id FROM websites WHERE id = type::record($id) LIMIT 1;'
-					: 'SELECT id FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
+					? 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) LIMIT 1;'
+					: 'SELECT id, url, verification_code, verified_at FROM websites WHERE id = type::record($id) AND (owner = type::record($user) OR type::record($user) IN users) LIMIT 1;',
 				{
 					id: website,
 					user: auth.user.id
@@ -135,6 +138,12 @@ export const POST: RequestHandler = async (event) => {
 			)
 		);
 		if (!websiteRow) return jsonError(event, 404, 'not_found', 'Website not found.');
+
+		const verification = await verifyWebsiteOwnership(websiteRow);
+
+		if(!verification.verified) {
+			return jsonError(event, 403, 'website_not_verified', 'Cannot create jobs for unverified websites', verification);
+		}
 
 		try {
 			const job = await withAdminDb((db) => {

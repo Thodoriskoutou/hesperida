@@ -2,7 +2,6 @@ services:
   probe:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./probe/Dockerfile
@@ -11,7 +10,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
       - "MAX_ATTEMPTS=${MAX_ATTEMPTS:-4}"
@@ -21,7 +20,6 @@ services:
   whois:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./whois/Dockerfile
@@ -30,14 +28,13 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
 
   ssl:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./ssl/Dockerfile
@@ -46,14 +43,13 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
 
   domain:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./domain/Dockerfile
@@ -62,7 +58,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
     volumes:
@@ -71,7 +67,6 @@ services:
   seo:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./seo/Dockerfile
@@ -80,14 +75,13 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
 
   wcag:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./wcag/Dockerfile
@@ -97,14 +91,13 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
 
   security:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./security/Dockerfile
@@ -113,7 +106,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
       - "SECURITY_NUCLEI_TEMPLATES=${SECURITY_NUCLEI_TEMPLATES:-}"
@@ -123,7 +116,6 @@ services:
   stress:
     restart: never
     profiles: [tools]
-    network_mode: "host"
     build:
       context: ./
       dockerfile: ./stress/Dockerfile
@@ -132,7 +124,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
       - "STRESS_RATE=${STRESS_RATE:-10}"
@@ -147,7 +139,6 @@ services:
 
   orchestrator:
     restart: always
-    network_mode: "host"
     profiles: ["backend", "aio"]
 #    command: ["--rebuild"] # comment this for not to rebuild the tool containers on every orchestrator start
     depends_on:
@@ -161,7 +152,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "DEBUG=${DEBUG:-false}"
     volumes:
@@ -189,7 +180,7 @@ services:
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "APP_MODE=${APP_MODE:-both}"
       - "API_URL=${API_URL:-}"
@@ -204,12 +195,35 @@ services:
       - "SESSION_COOKIE_MAX_AGE=${SESSION_COOKIE_MAX_AGE:-3600}"
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:3000/health >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   apprise:
     restart: always
     image: caronc/apprise:latest
     profiles: ["backend", "aio"]
-    command: ["apprise-api"]
+    environment:
+      - APPRISE_STATEFUL_MODE=disabled
+      - APPRISE_API_ONLY=yes
+      - APPRISE_WORKER_COUNT=${APPRISE_WORKER_COUNT:-1}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8000/status >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
   
   db:
     restart: always
@@ -245,13 +259,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    network_mode: "host"
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
       - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-127.0.0.1:8000}"
+      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - SURREAL_HIDE_WELCOME=true
       - SURREAL_NO_BANNER=true

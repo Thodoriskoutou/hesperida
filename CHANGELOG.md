@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.4.1] - 2026-04-10
+
+### Added
+
+- Mandatory Website Verification
+  - via DNS TXT record
+  - via txt file on web root
+
+### Changed
+
+#### Web
+
+- all date types now fixed to surrealdb's DateTime
+
+#### Orchestrator
+
+- removed `network_mode: host` from compose file and changed all database address defaults to its hostname (`db`)
+- tool containers spawned by the orchestrator will join the same network itself is on
+- the job queue items (a.k.a. tasks) don't save the url in `target`. `target` is only used for wcag `device` and whois `IP`. The `url` is fetched from `websites.url`.
+
+### Fixed
+
+- Added authentication instructions to the API Swagger page + minor dark mode fixes
+
 ## [0.4.0] - 2026-04-08
 
 ### Added

@@ -57,7 +57,7 @@ export const POST: RequestHandler = async (event) => {
 					email: $email,
 					password: crypto::argon2::generate($password),
 					role: $role
-				} RETURN AFTER;`,
+				};`,
 				{ name, email, password, role }
 			)
 		);

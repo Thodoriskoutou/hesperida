@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from
 import { adminOne, createUser, ensureSchema, resetData } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
 import { normalizeRecordId, toRouteId } from '../helpers/ids';
+import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
 setDefaultTimeout(30_000);
 
 const registerUser = async (namePrefix: string) => {
@@ -81,6 +82,15 @@ describe('API Core CRUD/Results Integration', () => {
 
 		const websiteId = toRouteId(websiteRes.json.data.website.id);
 		const websiteRecordId = normalizeRecordId(websiteRes.json.data.website.id);
+		const code = generateWebsiteVerificationCode();
+		const markVerified = await adminOne<{ verified_at: unknown }>(
+			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
+			{
+			id: websiteRecordId,
+			code
+			}
+		);
+		expect(markVerified?.verified_at).toBeTruthy();
 		const jobRes = await client.call({
 			method: 'POST',
 			path: '/api/v1/jobs',
@@ -90,7 +100,6 @@ describe('API Core CRUD/Results Integration', () => {
 				options: { wcag: { devices: ['Desktop Chrome'] } }
 			}
 		});
-
 		expect(jobRes.response.status).toBe(201);
 		expect(jobRes.json.data.job.types).toEqual(['seo', 'wcag']);
 		expect(jobRes.json.data.job.options.wcag.devices).toEqual(['Desktop Chrome']);
@@ -130,6 +139,15 @@ describe('API Core CRUD/Results Integration', () => {
 			}
 		});
 		expect(website.response.status).toBe(201);
+		const code = generateWebsiteVerificationCode();
+		const markVerified = await adminOne<{ verified_at: unknown }>(
+			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
+			{
+			id: normalizeRecordId(website.json.data.website.id),
+			code
+			}
+		);
+		expect(markVerified?.verified_at).toBeTruthy();
 
 		const job = await clientA.call({
 			method: 'POST',
@@ -174,6 +192,15 @@ describe('API Core CRUD/Results Integration', () => {
 				}
 			});
 			expect(website.response.status).toBe(201);
+			const code = generateWebsiteVerificationCode();
+			const markVerified = await adminOne<{ verified_at: unknown }>(
+				'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
+				{
+				id: normalizeRecordId(website.json.data.website.id),
+				code
+				}
+			);
+			expect(markVerified?.verified_at).toBeTruthy();
 
 			const job = await client.call({
 				method: 'POST',

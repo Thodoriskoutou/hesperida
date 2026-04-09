@@ -6,7 +6,7 @@ set -e
 : "${SURREAL_NAMESPACE:=main}"
 : "${SURREAL_DATABASE:=main}"
 : "${SURREAL_PROTOCOL:=http}"
-: "${SURREAL_ADDRESS:=127.0.0.1:8000}"
+: "${SURREAL_ADDRESS:=db:8000}"
 : "${DEBUG:=false}"
 
 IP="$1"

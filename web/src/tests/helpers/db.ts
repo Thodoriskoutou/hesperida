@@ -117,16 +117,45 @@ export const createUser = async (input: {
 	);
 };
 
-export const createWebsite = async (input: { user: unknown; url: string; description: string; verified?: boolean }) => {
+export const createWebsite = async (input: {
+	user: unknown;
+	url: string;
+	description: string;
+	verificationCode?: string;
+	verifiedAt?: string | null;
+}) => {
+	if (input.verifiedAt) {
+		return adminOne<{ id: string; owner: string; users: string[]; url: string }>(
+			`CREATE websites CONTENT {
+				owner: type::record('users', $user),
+				users: [type::record('users', $user)],
+				url: $url,
+				description: $description,
+				verification_code: $verificationCode,
+				verified_at: <datetime>$verifiedAt
+			} RETURN AFTER;`,
+			{
+				...input,
+				user: extractRawId(input.user),
+				verificationCode: input.verificationCode ?? crypto.randomUUID().replace(/-/g, '')
+			}
+		);
+	}
+
 	return adminOne<{ id: string; owner: string; users: string[]; url: string }>(
 		`CREATE websites CONTENT {
 			owner: type::record('users', $user),
 			users: [type::record('users', $user)],
 			url: $url,
 			description: $description,
-			verified: $verified
+			verification_code: $verificationCode,
+			verified_at: NONE
 		} RETURN AFTER;`,
-		{ ...input, user: extractRawId(input.user), verified: input.verified ?? false }
+		{
+			...input,
+			user: extractRawId(input.user),
+			verificationCode: input.verificationCode ?? crypto.randomUUID().replace(/-/g, '')
+		}
 	);
 };
 

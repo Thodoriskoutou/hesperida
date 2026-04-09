@@ -37,6 +37,7 @@
 		"vite": "^7.3.1"
 	},
 	"dependencies": {
+		"rdapper": "^0.13.0",
 		"surrealdb": "^2.0.3"
 	}
 }
