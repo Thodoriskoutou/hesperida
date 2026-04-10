@@ -29,8 +29,7 @@
 	import DataTableActions from "./data-table-actions.svelte";
 	import DataTableCheckbox from "./data-table-checkbox.svelte";
 	import DataTableStatus from "./data-table-status.svelte";
-	import type { QueueTaskRow, QueueTaskStatus } from "$lib/queue-tasks";
-	import { queueTaskStatuses } from "$lib/queue-tasks";
+	import { queueTaskStatuses, type QueueTaskRow } from "$lib/queue-tasks";
 
 	let {
 		rows,
@@ -232,7 +231,7 @@
 			>
 				{#each statusFilters as status (status)}
 					<Tabs.Trigger value={status} onclick={() => (statusFilter = status)}>
-						{status === "all" ? "All" : status}
+						<span class="capitalize">{status === "all" ? "All" : status}</span>
 						<Badge variant="secondary">{statusCount[status]}</Badge>
 					</Tabs.Trigger>
 				{/each}

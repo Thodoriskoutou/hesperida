@@ -4,6 +4,7 @@
 	import GlobeIcon from "@lucide/svelte/icons/globe";
 	import BriefcaseBusinessIcon from "@lucide/svelte/icons/briefcase-business";
 	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
+	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import { GithubStar } from "$lib/components/ui/button/index.js";
@@ -11,8 +12,14 @@
 	import NavMain from "$lib/components/nav-main.svelte";
 	import NavUser from "$lib/components/nav-user.svelte";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  	import NavSecondary from "$lib/components/nav-secondary.svelte";
+	import { Switch } from "$lib/components/ui/switch/index.js";
+	import { Label } from "$lib/components/ui/label/index.js";
+	import { toggleMode, mode } from "mode-watcher";
 
 	let { data, children } = $props();
+
+	let darkMode = $state(mode.current === "dark");
 
 	const navMain = [
 		{ title: "Home", url: "/", icon: HouseIcon },
@@ -21,6 +28,10 @@
 		{ title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon },
 		{ title: "Tasks", url: "/job-queue", icon: ListTodoIcon },
 		{ title: "Reports", url: "/reports", icon: FileTextIcon }
+	];
+
+	const navSecondary = [
+		{ title: "API", url: "/api", icon: FileCodeIcon }
 	];
 
 	const toInitials = (name: string | null | undefined, email: string | null | undefined): string => {
@@ -36,10 +47,15 @@
 		email: data?.user?.email ?? "",
 		initials: toInitials(data?.user?.name, data?.user?.email)
 	});
+
+	const toggleDarkMode = () => {
+		darkMode = !darkMode;
+		toggleMode();
+	}
 </script>
 
 <Sidebar.Provider
-	style="--sidebar-width: calc(var(--spacing) * 72); --header-height: calc(var(--spacing) * 12);"
+	style="--sidebar-width: calc(var(--spacing) * 52); --header-height: calc(var(--spacing) * 12);"
 >
 	<Sidebar.Root collapsible="offcanvas" variant="inset">
 		<Sidebar.Header>
@@ -58,8 +74,15 @@
 		</Sidebar.Header>
 		<Sidebar.Content>
 			<NavMain items={navMain} />
+			<NavSecondary items={navSecondary} class="mt-auto" />
 		</Sidebar.Content>
 		<Sidebar.Footer>
+			<div class="flex items-center space-x-2 p-2">
+				{#key darkMode}
+				<Switch id="dark-mode" onclick={toggleDarkMode} checked={darkMode} />
+				{/key}
+				<Label for="dark-mode">Dark Mode</Label>
+			</div>
 			<NavUser {user} />
 		</Sidebar.Footer>
 	</Sidebar.Root>

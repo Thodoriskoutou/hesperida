@@ -16,7 +16,7 @@
 								{#if item.icon}
 									<item.icon />
 								{/if}
-								<span>{item.title}</span>
+								<span class="text-sm font-semibold">{item.title}</span>
 							</a>
 						{/snippet}
 					</Sidebar.MenuButton>

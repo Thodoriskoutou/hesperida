@@ -12,8 +12,9 @@
 </script>
 
 <div class="inline-flex rounded-md shadow-sm">
-  <button
-    class="inline-flex items-center rounded-l-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+  <a
+    href={`https://github.com/${repo}`} target="_blank"
+    class="inline-flex items-center rounded-l-md border border-gray-300 bg-white px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100"
   >
     <svg
       class="mr-1.5 h-4 w-4 fill-current text-gray-500"
@@ -25,11 +26,10 @@
       />
     </svg>
     Star
-  </button>
-
+  </a>
   <a
     href={`https://github.com/${repo}`} target="_blank"
-    class="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+    class="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-white px-2 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50"
   >
     {stars?.toLocaleString() || '...'}
   </a>
