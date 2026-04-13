@@ -1,8 +1,12 @@
 <script lang="ts">
-    import type { Domain } from "$lib/types";
+    import type { ApiDomainResult } from "$lib/types/api";
     import * as Table from "./ui/table";
 
-    let { domain }: { domain: Domain } = $props();
+    type MxRecord = { exchange: string; priority: number };
+    type DnsValue = string | MxRecord;
+    type DnsGroup = Record<string, DnsValue[]>;
+
+    let { domain }: { domain: ApiDomainResult } = $props();
 </script>
 
 <Table.Root>
@@ -17,9 +21,9 @@
                 </ul>
             </Table.Cell>
         </Table.Row>
-        {#each Object.keys(domain.records!) as dnsType}
+        {#each Object.keys(domain.records ?? {}) as dnsType}
         {#if dnsType !== 'ns'}
-        {@const group = domain.records? domain.records[dnsType] : {}}
+        {@const group = ((domain.records?.[dnsType] ?? {}) as DnsGroup)}
         <Table.Row>
             <Table.Head>{dnsType.toUpperCase()} records</Table.Head>
             <Table.Cell class="font-medium">
@@ -27,11 +31,14 @@
             <div class="flex gap-2 mt-1">
                 <h5 class="font-bold">{subdomain}</h5>
                 <div class="break-all" style="white-space: break-spaces;">
-                    {#if typeof group[subdomain][0] === 'string'}
-                    {@const target = (group[subdomain].reduce((acc, target) => acc+`<div class="even:bg-sidebar-border">${target}</div>`, '') as string).replaceAll('"', '')}
+                    {#if typeof group[subdomain]?.[0] === 'string'}
+                    {@const target = (group[subdomain].reduce((acc, target) => acc+`<div class="even:bg-sidebar-border">${String(target)}</div>`, '') as string).replaceAll('"', '')}
                     {@html target.substring(0, target.length -2)}
                     {:else}
-                    {@html group[subdomain].reduce((acc, target) => acc+`<div class="even:bg-sidebar-border">${(target as any).exchange} (${(target as any).priority})</div>`, '')}
+                    {@html group[subdomain].reduce((acc, target) => {
+                        const mx = target as MxRecord;
+                        return acc+`<div class="even:bg-sidebar-border">${mx.exchange} (${mx.priority})</div>`;
+                    }, '')}
                     {/if}
                 </div>
             </div>

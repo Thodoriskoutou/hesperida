@@ -1,21 +1,31 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
+import { mapJobToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 import { formatDate } from '$lib/utils';
 import type { Tool } from '$lib/types';
+import type { ApiJob, ApiQueueTask, ApiWebsite, ApiWcagResult } from '$lib/types/api';
 
 const scoreTools = new Set<Tool>(['seo', 'wcag', 'security', 'stress']);
 
 export const load: PageServerLoad = async (event) => {
-	const data = await callDashboardApi<{ task: Record<string, unknown> }>(event, `/api/v1/job-queue/${event.params.id}`);
-	const job = await callDashboardApi<{ job: Record<string, unknown> }>(event, `/api/v1/jobs/${toRouteId(data.task.job)}`);
-	const website = await callDashboardApi<{ website: Record<string, unknown> }>(event, `/api/v1/websites/${toRouteId(job.job.website)}`);
+	const data = await callDashboardApi<{ task: ApiQueueTask }>(
+		event,
+		`/api/v1/job-queue/${event.params.id}`
+	);
+	const job = await callDashboardApi<{ job: ApiJob }>(
+		event,
+		`/api/v1/jobs/${toRouteIdString(data.task.job)}`
+	);
+	const website = await callDashboardApi<{ website: ApiWebsite }>(
+		event,
+		`/api/v1/websites/${toRouteIdString(job.job.website)}`
+	);
 
-	const taskRouteId = toRouteId(data.task.id);
+	const taskRouteId = toRouteIdString(data.task.id);
 	const url = new URL(website.website.url as string);
-	const taskLabel = `${(data.task.type as string).toUpperCase()} on ${url.hostname} @ ${formatDate(data.task.created_at as string, true)}`;
-	const jobRouteId = toRouteId(job.job.id);
+	const taskLabel = `${String(data.task.type).toUpperCase()} on ${url.hostname} @ ${formatDate(String(data.task.created_at ?? ''), true)}`;
+	const jobRouteId = toRouteIdString(job.job.id);
 	const taskType = String(data.task.type ?? '').toLowerCase() as Tool;
 
 	let toolResult: unknown = null;
@@ -30,20 +40,20 @@ export const load: PageServerLoad = async (event) => {
 		toolResult = resultData.result;
 
 		if (taskType === 'wcag') {
-			const resultArray = Array.isArray(resultData.result)
-				? resultData.result
+			const resultArray: ApiWcagResult[] = Array.isArray(resultData.result)
+				? (resultData.result as ApiWcagResult[])
 				: resultData.result
-					? [resultData.result]
+					? [resultData.result as ApiWcagResult]
 					: [];
 			const target = String(data.task.target ?? '').trim().toLowerCase();
 			const selectedWcag =
-				resultArray.find((entry) => String((entry as { device?: unknown }).device ?? '').toLowerCase() === target) ??
+				resultArray.find((entry) => String(entry.device ?? '').toLowerCase() === target) ??
 				resultArray[0] ??
 				null;
 
 			toolResult = selectedWcag;
-			if (selectedWcag && typeof selectedWcag === 'object' && 'id' in selectedWcag) {
-				wcagScreenshotId = toRouteId((selectedWcag as { id: unknown }).id);
+			if (selectedWcag?.id) {
+				wcagScreenshotId = toRouteIdString(selectedWcag.id);
 			}
 		}
 	} catch (error) {
@@ -55,8 +65,8 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	return {
-		task: { ...data.task, id: taskRouteId },
-		job: { ...job.job, id: jobRouteId, website_url: website.website.url },
+		task: { ...data.task, id: taskRouteId, job: toRouteIdString(data.task.job) },
+		job: { ...mapJobToView(job.job), id: jobRouteId, website_url: website.website.url },
 		taskType,
 		toolResult,
 		resultError,

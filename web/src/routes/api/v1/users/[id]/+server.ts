@@ -31,6 +31,11 @@ const isUserRole = (value: string): value is User["role"] =>
  *     security:
  *       - apiKeyAuth: []
  *         bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User deleted
+ *       409:
+ *         description: User owns websites and cannot be deleted
  */
 export const GET: RequestHandler = async (event) => {
 	return withRequiredUser(event, async (auth) => {
@@ -105,16 +110,27 @@ export const DELETE: RequestHandler = async (event) => {
 
 		const userId = new RecordId('users', event.params.id);
 		const existing = await withAdminDb((db) =>
-			queryOne<{ id: string }>(
+			queryOne<{ id: string }>(db, 'SELECT id FROM users WHERE id = $id LIMIT 1;', { id: userId })
+		);
+		if (!existing) return jsonError(event, 404, 'not_found', 'User not found.');
+
+		const ownedWebsites = await withAdminDb((db) =>
+			queryOne<{ total_items: number }>(
 				db,
-				'SELECT id FROM users WHERE id = $id LIMIT 1;',
+				'SELECT count() AS total_items FROM websites WHERE owner = $id GROUP ALL;',
 				{ id: userId }
 			)
 		);
-		if (!existing) return jsonError(event, 404, 'not_found', 'User not found.');
+		if (Number(ownedWebsites?.total_items ?? 0) > 0) {
+			return jsonError(
+				event,
+				409,
+				'cannot_delete_owner',
+				'Cannot delete this user because they own one or more websites.'
+			);
+		}
 
 		await withAdminDb((db) => db.query('DELETE $id;', { id: userId }).collect());
 		return jsonOk(event, { deleted: true });
 	});
 };
-

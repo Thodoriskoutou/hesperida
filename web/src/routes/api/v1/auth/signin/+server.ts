@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { config } from '$lib/server/config';
 import { withAnonDb } from '$lib/server/db';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
-import { getCurrentUser } from '$lib/server/auth';
+import { getCurrentUser, setSessionCookies } from '$lib/server/auth';
 
 /**
  * @swagger
@@ -53,16 +53,13 @@ export const POST: RequestHandler = async (event) => {
 			})
 		);
 
-		event.cookies.set(config.sessionCookieName, tokens.access, {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'lax',
-			secure: config.sessionCookieSecure,
-			maxAge: config.sessionCookieMaxAge
+		setSessionCookies(event, {
+			access: tokens.access,
+			refresh: tokens.refresh ?? null
 		});
 
 		const user = await getCurrentUser(tokens.access);
-		return jsonOk(event, { user, token: tokens.access });
+		return jsonOk(event, { user, token: tokens.access, refresh_token: tokens.refresh ?? null });
 	} catch (error) {
 		return jsonError(event, 401, 'auth_failed', (error as Error).message);
 	}

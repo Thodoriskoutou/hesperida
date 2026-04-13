@@ -7,3 +7,5 @@ ARCHITECTURE.md
 .codex
 .waylog
 web/wappalyzer.ts
+web/src/lib/assets/playwright-devices.json
+web/lib/assets/playwright-devices.json

@@ -51,6 +51,8 @@ describe('API Core CRUD/Results Integration', () => {
 		});
 
 		expect(created.response.status).toBe(201);
+		expect(typeof created.json.data.website.id).toBe('string');
+		expect(typeof created.json.data.website.created_at).toBe('string');
 		const websiteId = toRouteId(created.json.data.website.id);
 
 		const listA = await clientA.call({ method: 'GET', path: '/api/v1/websites' });
@@ -119,6 +121,8 @@ describe('API Core CRUD/Results Integration', () => {
 			}
 		});
 		expect(jobRes.response.status).toBe(201);
+		expect(typeof jobRes.json.data.job.id).toBe('string');
+		expect(typeof jobRes.json.data.job.created_at).toBe('string');
 		expect(jobRes.json.data.job.types).toEqual(['seo', 'wcag']);
 		expect(jobRes.json.data.job.options.wcag.devices).toEqual(['Desktop Chrome']);
 
@@ -182,6 +186,8 @@ describe('API Core CRUD/Results Integration', () => {
 		const ownerAgg = await clientA.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}` });
 		expect(ownerAgg.response.status).toBe(200);
 		expect(ownerAgg.json.ok).toBeTrue();
+		expect(typeof ownerAgg.json.data.job.id).toBe('string');
+		expect(typeof ownerAgg.json.data.job.created_at).toBe('string');
 
 		const ownerTool = await clientA.call({ method: 'GET', path: `/api/v1/results/jobs/${jobId}/seo` });
 		expect(ownerTool.response.status).toBe(200);

@@ -1,9 +1,9 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
 import { parseAllowedFilter } from '$lib/server/filter';
-import type { User } from '$lib/types';
+import type { ApiUser } from '$lib/types/api';
+import { mapUserToView } from '$lib/server/dashboard-mappers';
 
 const parsePositive = (value: string | null): number | null => {
 	if (!value) return null;
@@ -25,15 +25,12 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	try {
-		const data = await callDashboardApi<{ users: User[]; page?: number; page_size?: number; total_items?: number }>(
+		const data = await callDashboardApi<{ users: ApiUser[]; page?: number; page_size?: number; total_items?: number }>(
 			event,
 			'/api/v1/users',
 			{ searchParams: search }
 		);
-		const users = (data.users ?? []).map((user) => ({
-			...user,
-			id: toRouteId(user.id)
-		}));
+		const users = (data.users ?? []).map(mapUserToView);
 		return {
 			users,
 			initialFilter,

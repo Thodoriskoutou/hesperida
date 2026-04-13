@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { createToastEnhance } from '$lib/form-toast';
 
 	let { form } = $props();
 </script>
@@ -14,7 +16,17 @@
 		<p class="text-sm text-destructive">{form.error}</p>
 	{/if}
 
-	<form method="POST" class="space-y-3">
+	<form
+		method="POST"
+		class="space-y-3"
+		use:enhance={createToastEnhance({
+			success: ({ formData }) => {
+				const url = String(formData.get('url') ?? '').trim();
+				return `Website ${url || 'record'} created successfully.`;
+			},
+			error: 'Failed to create website.'
+		})}
+	>
 		<div class="flex w-full max-w-sm flex-col gap-1.5">
 			<Label for="url" class="text-lg">URL</Label>
 			<Input id="url" name="url" type="url" placeholder="https://my.website.com" value={form?.values?.url ?? ''} class="h-10" />

@@ -1,9 +1,9 @@
-import { config } from '$lib/server/config';
+import { clearSessionCookies } from '$lib/server/auth';
 import { redirect, type RequestHandler } from '@sveltejs/kit';
 
 const runSignout = async (event: Parameters<RequestHandler>[0]) => {
 	await event.fetch('/api/v1/auth/signout', { method: 'POST' });
-	event.cookies.delete(config.sessionCookieName, { path: '/' });
+	clearSessionCookies(event);
 	throw redirect(303, '/auth/signin');
 };
 

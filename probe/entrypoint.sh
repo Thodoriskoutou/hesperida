@@ -36,6 +36,31 @@ else
     if [ "$has_cdn" = "true" ]; then
         cdn=$(echo "$httpx_output" | jq -r '{name: .cdn_name, type: .cdn_type}')
     fi
+    geo=null
+    ip_address=$(echo "$httpx_output" | jq -r '.a[0] // .aaaa[0] // empty')
+    if [ -n "$ip_address" ]; then
+        geo_response=$(curl -fsSL --connect-timeout 3 --max-time 5 "https://free.freeipapi.com/api/json/$ip_address" 2>/dev/null || true)
+        if [ -n "$geo_response" ]; then
+            geo=$(echo "$geo_response" | jq -c '
+                if (.latitude | type == "number")
+                and (.longitude | type == "number")
+                and (.countryName | type == "string")
+                and (.countryCode | type == "string")
+                then
+                    {
+                        lat: .latitude,
+                        lon: .longitude,
+                        country_name: .countryName,
+                        country_code: .countryCode
+                    }
+                    + (if (.cityName | type == "string") and (.cityName | length > 0) then { city: .cityName } else {} end)
+                    + (if (.zipCode | type == "string") and (.zipCode | length > 0) then { zip: .zipCode } else {} end)
+                else
+                    null
+                end
+            ' 2>/dev/null || true)
+        fi
+    fi
     domain=$(echo "$URL" | awk -F/ '{print $3}')
     favicon=$(curl -Ls "https://www.google.com/s2/favicons?domain=$domain&sz=64" | base64 -w 0)
 
@@ -69,6 +94,10 @@ else
     if [ "$ipv6" != "null" ]; then
         query="$query
         ipv6: $ipv6,"
+    fi
+    if [ "$geo" != "null" ] && [ -n "$geo" ]; then
+        query="$query
+        geo: $geo,"
     fi
     query=${query%?} # remove trailing comma
     query="$query

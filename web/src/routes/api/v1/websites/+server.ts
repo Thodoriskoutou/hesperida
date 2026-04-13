@@ -117,8 +117,8 @@ export const POST: RequestHandler = async (event) => {
 		const description = typeof payload.description === 'string' ? payload.description.trim() : '';
 		const verificationCode = generateWebsiteVerificationCode();
 
-		if (!url || !description) {
-			return jsonError(event, 400, 'bad_request', 'url and description are required.');
+		if (!url) {
+			return jsonError(event, 400, 'bad_request', 'url is required.');
 		}
 
 		try {

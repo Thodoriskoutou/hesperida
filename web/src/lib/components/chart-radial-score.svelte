@@ -13,7 +13,7 @@
     let { scores }: { scores: ScoreChartItem[] } = $props();
 
     const chartConfig = $derived(scores.reduce((acc, item, i) => {
-        //@ts-ignore
+        // @ts-expect-error TODO(upstream layerchart/shadcn): runtime accepts dynamic chart keys.
         acc[item.tool] = {
             label: item.label,
             color: `var(--chart-${i + 1})`
@@ -48,8 +48,8 @@
             <Chart.Tooltip hideLabel>
                 {#snippet formatter({ value, payload, item })}
                     {#key item}
-                    {@const elementAtCursor = document.elementFromPoint(event.clientX, event.clientY)}
-                    <div class="shrink-0 rounded-xs border-(--color-border) bg-(--color-bg) size-2.5" style="--color-bg: {elementAtCursor?.getAttribute("fill")}; --color-border: {elementAtCursor?.getAttribute("fill")};"></div>
+                    {@const markerColor = String(payload?.[0]?.color ?? "currentColor")}
+                    <div class="shrink-0 rounded-xs border-(--color-border) bg-(--color-bg) size-2.5" style="--color-bg: {markerColor}; --color-border: {markerColor};"></div>
                     {/key}                    
                     <div class="flex flex-1 shrink-0 justify-between leading-none items-center">
                         <div class="grid gap-1.5">

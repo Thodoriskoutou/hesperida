@@ -50,6 +50,7 @@ export const config = {
 	surrealProtocol,
 	surrealWsUrl: `${wsProtocol}://${read('SURREAL_ADDRESS') || 'db:8000'}`,
 	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
+	sessionRefreshCookieName: read('SESSION_REFRESH_COOKIE_NAME') || 'hesperida_refresh',
 	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
 	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60}`, 10),
 	wappalyzerDB: read('WP_PATH') || '/app/wappalyzer.db',

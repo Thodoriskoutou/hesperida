@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -8,11 +9,19 @@
 	import * as Table from '$lib/components/ui/table';
 	import { Input } from '$lib/components/ui/input';
 	import { setFilterParam } from '$lib/filter';
-  	import { formatDate } from '$lib/utils.js';
+	import { formatDate } from '$lib/utils.js';
+	import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+	import type { WebsiteView } from '$lib/types/view.js';
+	import { createToastEnhance } from '$lib/form-toast';
 
 	let { data, form } = $props();
 	let verificationFilter = $derived<'all' | 'verified' | 'unverified'>((data.initialFilter ?? 'all') as 'all' | 'verified' | 'unverified');
 	let urlSearch = $state('');
+	const websiteJobCounts = $derived((data.websiteJobCounts ?? {}) as Record<string, number>);
+
+	let deleteDialog = $state(false);
+	let deleteDialogJobCount = $state(0);
+	let deleteDialogWebsite: WebsiteView | undefined = $state();
 
 	const filteredWebsites = $derived.by(() => {
 		const websites = data.websites ?? [];
@@ -37,6 +46,13 @@
 		const next = setFilterParam(new URL(window.location.href), filter, 'all');
 		await goto(next, { replaceState: true, noScroll: true, keepFocus: true });
 	};
+
+
+  function triggerDelete(website: WebsiteView): void {
+    deleteDialogJobCount = Number(websiteJobCounts[website.id] ?? 0);
+	deleteDialogWebsite = website;
+	deleteDialog = true;
+  }
 </script>
 
 <div class="p-4 lg:p-6 space-y-4">
@@ -88,7 +104,6 @@
 					<Table.Row><Table.Cell colspan={4} class="p-3 text-muted-foreground">No websites found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredWebsites as website (website.id)}
-						{@const website_id = website.id?.toString().split(':')[1]}
 						<Table.Row class="border-t">
 							<Table.Cell class="p-3">{website.url}</Table.Cell>
 							<Table.Cell class="p-3">{website.verified_at ? formatDate(website.verified_at) : 'No'}</Table.Cell>
@@ -106,20 +121,21 @@
 									<DropdownMenu.Content align="end" class="w-40">
 										<DropdownMenu.Item>
 											{#snippet child({ props })}
-												<a href={`/websites/${website_id}`} {...props}>View</a>
+												<a href={`/websites/${website.id}`} {...props}>View</a>
 											{/snippet}
 										</DropdownMenu.Item>
 										<DropdownMenu.Item>
 											{#snippet child({ props })}
-												<a href={`/jobs/new?website_id=${website_id}`} {...props}>Add Job</a>
+												<a href={`/jobs/new?website_id=${website.id}`} {...props}>Add Job</a>
 											{/snippet}
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item variant="destructive">
-											<form method="POST" action="?/delete" class="w-full">
-												<input type="hidden" name="id" value={website_id} />
-												<button type="submit" class="w-full text-left">Delete</button>
-											</form>
+											<button
+											onclick={() => triggerDelete(website)}
+											class='w-full text-left'>
+												Delete
+											</button>
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>
 								</DropdownMenu.Root>
@@ -131,3 +147,39 @@
 		</Table.Root>
 	</div>
 </div>
+
+<AlertDialog.Root bind:open={deleteDialog}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+			<AlertDialog.Description>
+				{#if deleteDialogJobCount}
+				This website has {deleteDialogJobCount} job(s).
+				Deleting it will also delete all related jobs and results.
+				{/if}
+				Continue deleting {deleteDialogWebsite?.url}?
+			</AlertDialog.Description>
+			</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<form
+				method="POST"
+				action="?/delete"
+				onsubmit={() => {
+					deleteDialog = false;
+				}}
+				use:enhance={createToastEnhance({
+					success: ({ formData }) => {
+						const url = String(formData.get('url') ?? '').trim();
+						return `Website ${url || 'record'} deleted successfully.`;
+					},
+					error: 'Failed to delete website.'
+				})}
+			>
+				<input type="hidden" name="id" value={deleteDialogWebsite?.id} />
+				<input type="hidden" name="url" value={deleteDialogWebsite?.url} />
+				<AlertDialog.Action type="submit">Continue</AlertDialog.Action>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

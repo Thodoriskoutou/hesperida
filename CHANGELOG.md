@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Web Dashboard
 - Wappalyzer offline database (from last public release)
 - Gotenberg container for PDF generation (only works on production)
+- Ability to change website ownership
+- The Probe tool now also fetches GeoIP data via freeipapi.com (Free Tier)
 
 ### Changed
 

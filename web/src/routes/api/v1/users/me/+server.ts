@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk, parseJson } from '$lib/server/http';
 import { queryOne, withUserDb } from '$lib/server/db';
-import { config } from '$lib/server/config';
+import { clearSessionCookies } from '$lib/server/auth';
 
 /**
  * @swagger
@@ -67,6 +67,8 @@ export const GET: RequestHandler = async (event) => {
  *     responses:
  *       200:
  *         description: User deleted
+ *       409:
+ *         description: User owns one or more websites
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -176,6 +178,12 @@ export const DELETE: RequestHandler = async (event) => {
 			);
 			if (!existing?.id) return { notFound: true as const };
 
+			const ownedWebsites = await queryOne<{ total_items: number }>(
+				db,
+				'SELECT count() AS total_items FROM websites WHERE owner = $auth.id GROUP ALL;'
+			);
+			if (Number(ownedWebsites?.total_items ?? 0) > 0) return { ownsWebsites: true as const };
+
 			await db.query('DELETE $auth.id;').collect();
 			try {
 				await db.invalidate();
@@ -193,7 +201,16 @@ export const DELETE: RequestHandler = async (event) => {
 			return jsonError(event, 404, 'not_found', 'User not found.');
 		}
 
-		event.cookies.delete(config.sessionCookieName, { path: '/' });
+		if ('ownsWebsites' in state) {
+			return jsonError(
+				event,
+				409,
+				'cannot_delete_owner',
+				'Cannot delete your account because you own one or more websites.'
+			);
+		}
+
+		clearSessionCookies(event);
 		return jsonOk(event, { deleted: true });
 	} catch (error) {
 		return jsonError(event, 400, 'delete_failed', (error as Error).message);

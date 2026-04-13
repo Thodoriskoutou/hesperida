@@ -44,6 +44,8 @@ describe('API Job Queue Integration', () => {
 		expect(res.json.ok).toBeTrue();
 		expect(Array.isArray(res.json.data.tasks)).toBeTrue();
 		expect(res.json.data.tasks.length).toBe(1);
+		expect(typeof res.json.data.tasks[0].id).toBe('string');
+		expect(typeof res.json.data.tasks[0].created_at).toBe('string');
 	});
 
 	test('queue list endpoints support pagination and validation', async () => {
@@ -77,6 +79,8 @@ describe('API Job Queue Integration', () => {
 		expect(queuePage.response.status).toBe(200);
 		expect(queuePage.json.data.tasks.length).toBe(2);
 		expect(queuePage.json.data.total_items).toBe(3);
+		expect(typeof queuePage.json.data.tasks[0].id).toBe('string');
+		expect(typeof queuePage.json.data.tasks[0].created_at).toBe('string');
 
 		const byJobPage = await client.call({
 			method: 'GET',

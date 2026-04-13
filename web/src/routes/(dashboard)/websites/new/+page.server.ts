@@ -10,8 +10,8 @@ export const actions: Actions = {
 		const url = String(formData.get('url') ?? '').trim();
 		const description = String(formData.get('description') ?? '').trim();
 
-		if (!url || !description) {
-			return fail(400, { error: 'url and description are required.', values: { url, description } });
+		if (!url) {
+			return fail(400, { error: 'url is required.', values: { url } });
 		}
 
 		try {

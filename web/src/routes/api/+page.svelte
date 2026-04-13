@@ -27,7 +27,7 @@ async function initializeSwaggerUI() {
     try {
         // Attempt to load a virtual spec module (Vite plugin) first
         try {
-            // @ts-ignore - virtual import may not exist in all environments
+            // @ts-expect-error TODO(upstream): virtual import may not exist in all environments
             const virtualSpec = await import('virtual:openapi-spec');
             spec = virtualSpec?.default ?? virtualSpec;
         } catch (e) {
@@ -41,7 +41,7 @@ async function initializeSwaggerUI() {
             }
         }
 
-        // @ts-ignore - swagger-ui-dist doesn't have types
+        // @ts-expect-error TODO(upstream): swagger-ui-dist doesn't provide typed entrypoint here
         const { SwaggerUIBundle, SwaggerUIStandalonePreset } = await import('swagger-ui-dist');
 
         SwaggerUIBundle({

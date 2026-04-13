@@ -1,5 +1,5 @@
 import { fail, type Actions } from '@sveltejs/kit';
-import type { ApiEnvelope } from '$lib/types';
+import type { ApiEnvelope } from '$lib/types/api';
 
 export const actions: Actions = {
 	default: async (event) => {
@@ -16,9 +16,9 @@ export const actions: Actions = {
 			body: JSON.stringify({ email })
 		});
 
-		let payload: ApiEnvelope | null = null;
+		let payload: ApiEnvelope<{ success?: boolean }> | null = null;
 		try {
-			payload = (await response.json()) as ApiEnvelope;
+			payload = (await response.json()) as ApiEnvelope<{ success?: boolean }>;
 		} catch {
 			payload = null;
 		}

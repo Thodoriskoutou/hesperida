@@ -7,7 +7,20 @@
 	import * as Table from "$lib/components/ui/table/index.js";
 	import { formatDate } from '$lib/utils.js';
 	import ScoreChart, {type ScoreChartItem} from '$lib/components/chart-radial-score.svelte'
-  	import type { CommonResults, Whois, SSL, Stress, Tool, WCAG, SEO, Security, Domain, Probe, Website } from '$lib/types';
+	import type { Tool } from '$lib/types';
+	import type {
+		ApiCommonScoreResult,
+		ApiDomainResult,
+		ApiJobResults,
+		ApiProbeResult,
+		ApiSSLResult,
+		ApiSecurityResult,
+		ApiSeoResult,
+		ApiStressResult,
+		ApiWcagResult,
+		ApiWhoisResult,
+		ApiWebsite
+	} from '$lib/types/api';
 	import ThumbsDownIcon from "@lucide/svelte/icons/thumbs-down";
 	import ThumbsUpIcon from "@lucide/svelte/icons/thumbs-up";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
@@ -25,17 +38,35 @@
   	import ScoreToolResults from '$lib/components/score-tool-results.svelte';
 
 	let { data } = $props();
-	const job = $derived(data.job as Record<string, unknown>);
+	type JobViewModel = ApiJobResults & {
+		geo: {
+			lat: number;
+			lon: number;
+			countryName: string;
+			countryCode: string;
+			zip: string;
+			city: string;
+		};
+		probe: ApiProbeResult & {
+			tech?: Technology[];
+			wp_plugins?: Technology[];
+			wp_themes?: Technology[];
+		};
+	};
+	const job = $derived(data.job as JobViewModel);
+	const website = $derived(
+		typeof job.website === 'string' ? ({ url: '' } as ApiWebsite) : job.website
+	);
 	const types = $derived((Array.isArray(job.types) ? job.types : []) as Tool[]);
 
-	let wcagArray = $derived((job.wcag as WCAG[]).map(wcag => {
+	let wcagArray = $derived(job.wcag ? (job.wcag as ApiWcagResult[]).map(wcag => {
 		return {
-			id: (wcag.id as unknown as string).split(':')[1],
+			id: String(wcag.id ?? '').split(':').pop() ?? '',
 			name: wcag.device,
 			slug: wcag.device.replace(/[\s-'\./]/, '_').toLowerCase(),
 			score: wcag.score
 		} as { id: string; name: string; slug: string; score: number; }
-	}));
+	}) : []);
 
 	const chartScores = $derived.by(() => {
 		const results: ScoreChartItem[] = [];
@@ -43,10 +74,10 @@
 			results.push({
 				tool: 'stress',
 				label: 'Stress',
-				score: (job.stress as Stress).score
+				score: (job.stress as ApiStressResult).score
 			});
 		}
-		if(job.wcag && (job.wcag as WCAG[]).length) {
+		if(job.wcag && (job.wcag as ApiWcagResult[]).length) {
 			wcagArray.forEach((item, i) => {
 				results.push({
 					tool: `wcag_${item.slug}`,
@@ -60,17 +91,43 @@
 			results.push({
 				tool: 'seo',
 				label: 'SEO',
-				score: (job.seo as SEO).score
+				score: (job.seo as ApiSeoResult).score
 			});
 		}
 		if(job.security) {
 			results.push({
 				tool: 'security',
 				label: 'Security',
-				score: (job.security as Security).score
+				score: (job.security as ApiSecurityResult).score
 			});
 		}
 		return results;
+	});
+
+	const getScoreResult = (scoreRow: ScoreChartItem): ApiCommonScoreResult | ApiWcagResult | null => {
+		if (scoreRow.tool.startsWith('wcag')) {
+			return (job.wcag as ApiWcagResult[])[scoreRow.index as number] ?? null;
+		}
+		if (scoreRow.tool === 'seo') return (job.seo as ApiSeoResult) ?? null;
+		if (scoreRow.tool === 'security') return (job.security as ApiSecurityResult) ?? null;
+		if (scoreRow.tool === 'stress') return (job.stress as ApiStressResult) ?? null;
+		return null;
+	};
+
+	const seoDescription = $derived.by(() => {
+		if (!job.seo) return '';
+		const raw = (job.seo as ApiSeoResult).raw as {
+			categoryResults?: Array<{
+				results?: Array<{
+					ruleId?: string;
+					details?: { description?: string };
+				}>;
+			}>;
+		};
+		const results = raw.categoryResults?.[0]?.results ?? [];
+		const description = results.find((rule) => rule.ruleId === 'core-description-present')?.details
+			?.description;
+		return description ? String(description) : '';
 	});
 
 	const statusBadgeVariant = (status?: string) => {
@@ -160,15 +217,15 @@
 
 <div class="p-4 lg:p-6 space-y-4">
 	<h2 class="text-xl font-semibold">Job Details</h2>
-	<div class="grid lg:grid-cols-2 gap-4">
-		<Card.Root>
+	<div class="grid grid-flow-row-dense grid-flow-col-dense gap-4" style="grid-template-columns: repeat(6, minmax(10vw, 1fr));">
+		<Card.Root class="row-span-2 col-span-6 lg:col-span-3">
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
 					<span>Status:</span>
 					<Badge variant={statusBadgeVariant(job.status as string)}>{String(job.status ?? 'pending')}</Badge>
 				</Card.Title>
 				<Card.Description>
-					URL: <Button variant='link' href={(job.website as Website).url} target="_blank" title="Visit Website">{(job.website as Website).url}</Button> · Scanned: {formatDate(job.created_at as string, true)}
+					URL: <Button variant='link' href={website.url} target="_blank" title="Visit Website">{website.url}</Button> · Scanned: {formatDate(String(job.created_at ?? ''), true)}
 				</Card.Description>
 			</Card.Header>
 			<Card.Content class="flex flex-col gap-2">
@@ -184,16 +241,15 @@
 						{/each}
 					{/if}
 				</div>
-				{@const probe = job.probe as Probe}
+				{@const probe = job.probe}
 				<Item.Root>
 					<Item.Content class="block">
 						{#if probe.favicon?.length}
 							<img src="data:image/png;base64,{probe.favicon}" width="64" height="64" class="float-left mr-2" alt="favicon" />
 						{/if}
 						<Item.Title>{probe.title}</Item.Title>
-						{#if job.seo}
-						{@const desc_results = (job.seo as any).raw.categoryResults[0].results.find(r => r.ruleId === 'core-description-present')}
-						<Item.Description>{desc_results.details.description}</Item.Description>
+						{#if seoDescription}
+						<Item.Description>{seoDescription}</Item.Description>
 						{/if}
 					</Item.Content>
 				</Item.Root>
@@ -330,7 +386,7 @@
 		</Card.Root>
 
 		{#if wcagArray.length}
-		<Tabs.Root value={wcagArray[0].slug}>
+		<Tabs.Root value={wcagArray[0].slug}  class="row-span-2 col-span-6 lg:col-span-3">
 			<Tabs.List>
 				{#each wcagArray as wcag (wcag.id)}
 				<Tabs.Trigger value={wcag.slug}>{wcag.name}</Tabs.Trigger>
@@ -338,20 +394,19 @@
 			</Tabs.List>
 			{#each wcagArray as wcag (wcag.id)}
 			<Tabs.Content value={wcag.slug}>
-				<ScrollArea class="h-[600px] object-center border p-4">
+				<ScrollArea class="h-150 object-center border p-4">
 					<img src="/api/v1/screenshots/{wcag.id}" alt="{wcag.name} Screenshot" />
 				</ScrollArea>
 			</Tabs.Content>
 			{/each}
 		</Tabs.Root>
 		{/if}
-	</div>
-	<div class="grid grid-flow-row-dense grid-flow-col-dense gap-4" style="grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));">
-		<Card.Root class="row-span-2 col-span-2 lg:col-span-1 sm:min-w-[420px]">
+	
+		<Card.Root class="row-span-2 col-span-6 lg:col-span-3 2xl:col-span-2 sm:min-w-105">
 			<Card.Header>
 				<!-- TODO centralize tool icons -->
 					<!-- TODO link to full tool results -->
-				<Card.Title class="capitalize">Your server is{(data.job as any).probe.cdn ? ' not' : ''} here</Card.Title>
+				<Card.Title class="capitalize">Your server is{job.probe?.cdn ? ' not' : ''} here</Card.Title>
 			</Card.Header>
 			<Card.Content>
 				<Item.Root>
@@ -374,7 +429,8 @@
 			</Card.Content>
 		</Card.Root>
 
-		<Card.Root class="row-span-2 col-span-2 lg:col-span-1 sm:min-w-[420px]">
+		{#if chartScores.length}
+		<Card.Root class="row-span-2 col-span-6 lg:col-span-3 2xl:col-span-2 sm:min-w-105">
 			<Card.Header>
 				<!-- TODO centralize tool icons -->
 					<!-- TODO link to full tool results -->
@@ -394,7 +450,7 @@
 					</Table.Header>
 					<Table.Body>
 						{#each chartScores as scoreRow (scoreRow.tool)}
-						{@const results = scoreRow.tool.startsWith('wcag') ? (job.wcag as WCAG[])[scoreRow.index as number] : job[scoreRow.tool]}
+						{@const results = getScoreResult(scoreRow)}
 						<Table.Row>
 							<Table.Cell class="font-medium">
 								<Dialog.Root>
@@ -403,7 +459,7 @@
 										<Dialog.Header>
 										<Dialog.Title>Detailed Results for {scoreRow.label}</Dialog.Title>
 										<Dialog.Description>
-											<ScrollArea class="h-[500px] pr-2">
+											<ScrollArea class="h-125 pr-2">
 												<ScoreToolResults data={results} tool={scoreRow.tool.startsWith('wcag') ? 'wcag' : scoreRow.tool as Tool} />
 											</ScrollArea>
 										</Dialog.Description>
@@ -412,19 +468,20 @@
 								</Dialog.Root>
 								
 							</Table.Cell>
-							<Table.Cell class="text-accent">{scoreRow.tool === 'security' ? 'N/A' : (results as CommonResults).passes}</Table.Cell>
-							<Table.Cell class="text-warning">{(results as CommonResults).warnings}</Table.Cell>
-							<Table.Cell class="text-destructive">{(results as CommonResults).errors}</Table.Cell>
-							<Table.Cell class="text-end font-semibold">{(results as CommonResults).score.toFixed(2)}%</Table.Cell>
+							<Table.Cell class="text-accent">{scoreRow.tool === 'security' ? 'N/A' : (results?.passes ?? 0)}</Table.Cell>
+							<Table.Cell class="text-warning">{results?.warnings ?? 0}</Table.Cell>
+							<Table.Cell class="text-destructive">{results?.errors ?? 0}</Table.Cell>
+							<Table.Cell class="text-end font-semibold">{(results?.score ?? 0).toFixed(2)}%</Table.Cell>
 						</Table.Row>
 						{/each}
 					</Table.Body>
 				</Table.Root>
 			</Card.Content>
 		</Card.Root>
+		{/if}
 
-		{#if job.whois && (job.whois as Whois[]).length}
-		<Card.Root class="col-span-2">
+		{#if job.whois && (job.whois as ApiWhoisResult[]).length}
+		<Card.Root class="col-span-6 xl:col-span-4">
 			<Card.Header>
 				<!-- TODO centralize tool icons -->
 					<!-- TODO link to full tool results -->
@@ -444,7 +501,7 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each (job.whois as Whois[]) as whois (whois.id)}
+						{#each (job.whois as ApiWhoisResult[]) as whois (whois.id)}
 						<Table.Row>
 							<Table.Cell class="font-medium">{whois.ip}</Table.Cell>
 							<Table.Cell>{whois.network}</Table.Cell>
@@ -462,8 +519,8 @@
 		{/if}
 
 		{#if job.domain}
-		{@const domain = job.domain as Domain & { expires_in: number}}
-		<Card.Root class="col-span-2 lg:col-span-1 sm:min-w-[420px]">
+		{@const domain = job.domain as ApiDomainResult & { expires_in: number}}
+		<Card.Root class="col-span-6 md:col-span-3 xl:col-span-2 sm:min-w-90">
 			<Card.Header class="flex justify-between">
 				<!-- TODO centralize tool icons -->
 					<!-- TODO link to full tool results -->
@@ -549,7 +606,7 @@
 								>This is not an exhaustive list, DNS servers often truncate responses (a.k.a. records might be missing)</Alert.Title
 								>
 							</Alert.Root>
-							<ScrollArea class="h-[500px] pr-2">
+							<ScrollArea class="h-125 pr-2">
 								<DnsRecords {domain} />
 							</ScrollArea>
 						</Dialog.Description>
@@ -561,8 +618,8 @@
 		{/if}
 
 		{#if job.ssl}
-		{@const ssl = job.ssl as SSL & { expires_in: number}}
-		<Card.Root class="col-span-2 lg:col-span-1 sm:min-w-[420px]">
+		{@const ssl = job.ssl as ApiSSLResult & { expires_in: number}}
+		<Card.Root class="col-span-6 md:col-span-3 xl:col-span-2 sm:min-w-90">
 			<Card.Header class="flex justify-between">
 				<!-- TODO centralize tool icons -->
 					<!-- TODO link to full tool results -->
@@ -607,9 +664,7 @@
 			</Card.Content>
 		</Card.Root>
 		{/if}
-
 	</div>
-
 	<div class="flex justify-between">
 		<Button href="/jobs" variant="outline">
 			<ArrowLeftIcon class="size-4" />

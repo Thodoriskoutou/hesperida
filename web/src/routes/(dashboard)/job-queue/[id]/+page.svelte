@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -7,7 +8,9 @@
 	import ScoreChart, { type ScoreChartItem } from '$lib/components/chart-radial-score.svelte';
 	import DnsRecords from '$lib/components/dns-records.svelte';
 	import ScoreToolResults from '$lib/components/score-tool-results.svelte';
-	import type { CommonResults, Domain, Tool } from '$lib/types';
+	import type { Tool } from '$lib/types';
+	import type { ApiCommonScoreResult, ApiDomainResult, ApiQueueTask } from '$lib/types/api';
+	import type { JobView } from '$lib/types/view';
 	import { formatDate } from '$lib/utils';
   	import { ScrollArea } from '$lib/components/ui/scroll-area';
   	import * as Table from '$lib/components/ui/table';
@@ -15,10 +18,11 @@
 	import ThumbsUpIcon from "@lucide/svelte/icons/thumbs-up";
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   	import * as Alert from '$lib/components/ui/alert';
+	import { createToastEnhance } from '$lib/form-toast';
 
 	let { data, form } = $props();
-	const task = $derived(data.task as Record<string, unknown>);
-	const job = $derived(data.job as Record<string, unknown>);
+	const task = $derived(data.task as ApiQueueTask & { id: string; job: string });
+	const job = $derived(data.job as JobView & { website_url: string });
 	const taskType = $derived(String(data.taskType ?? '') as Tool);
 
 	const statusBadgeVariant = (status?: string) => {
@@ -38,7 +42,7 @@
 	};
 
 	const scoreItems = $derived.by(() => {
-		const result = data.toolResult as Record<string, unknown> | null;
+		const result = data.toolResult as ApiCommonScoreResult & { device?: string } | null;
 		if (!result || !data.isScoreTool) return [] as ScoreChartItem[];
 
 		const score = Number(result.score);
@@ -123,17 +127,17 @@
 					</Table.Header>
 					<Table.Body>
 						<Table.Row>
-							<Table.Cell class="text-accent">{task.type === 'security' ? 'N/A' : (data.toolResult as CommonResults).passes}</Table.Cell>
-							<Table.Cell class="text-warning">{(data.toolResult as CommonResults).warnings}</Table.Cell>
-							<Table.Cell class="text-destructive">{(data.toolResult as CommonResults).errors}</Table.Cell>
-							<Table.Cell class="text-end font-semibold">{(data.toolResult as CommonResults).score.toFixed(2)}%</Table.Cell>
+							<Table.Cell class="text-accent">{task.type === 'security' ? 'N/A' : (data.toolResult as ApiCommonScoreResult).passes}</Table.Cell>
+							<Table.Cell class="text-warning">{(data.toolResult as ApiCommonScoreResult).warnings}</Table.Cell>
+							<Table.Cell class="text-destructive">{(data.toolResult as ApiCommonScoreResult).errors}</Table.Cell>
+							<Table.Cell class="text-end font-semibold">{(data.toolResult as ApiCommonScoreResult).score.toFixed(2)}%</Table.Cell>
 						</Table.Row>
 					</Table.Body>
 				</Table.Root>
 			</Card.Content>
 		</Card.Root>
 		{#if taskType === 'wcag' && data.wcagScreenshotId}
-		<Card.Root class="col-span-2">
+		<Card.Root class="lg:col-span-2">
 			<Card.Header>
 				<Card.Title>Screenshot</Card.Title>
 			</Card.Header>
@@ -154,7 +158,7 @@
 	{/if}
 
 	{#if taskType === 'domain' && data.toolResult}
-	{@const domain = data.toolResult as Domain & { expires_in?: number }}
+	{@const domain = data.toolResult as ApiDomainResult & { expires_in?: number }}
 	<div class="grid lg:grid-cols-3 gap-4">
 		<Card.Root>
 			<Card.Header class="flex justify-between">
@@ -241,7 +245,7 @@
 					>This is not an exhaustive list, DNS servers often truncate responses (a.k.a. records might be missing)</Alert.Title
 					>
 				</Alert.Root>
-				<DnsRecords domain={data.toolResult as Domain} />
+				<DnsRecords domain={data.toolResult as ApiDomainResult} />
 			</Card.Content>
 		</Card.Root>
 	</div>
@@ -267,7 +271,14 @@
 
 	<div class="flex items-center gap-3">
 		{#if String(task.status ?? '') === 'waiting'}
-			<form method="POST" action="?/cancel">
+			<form
+				method="POST"
+				action="?/cancel"
+				use:enhance={createToastEnhance({
+					success: 'Task canceled successfully.',
+					error: 'Failed to cancel task.'
+				})}
+			>
 				<Button type="submit" variant="destructive">Cancel Task</Button>
 			</form>
 		{/if}

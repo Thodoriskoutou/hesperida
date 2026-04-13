@@ -1,15 +1,17 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
   	import { Checkbox } from '$lib/components/ui/checkbox';
     import * as Field from '$lib/components/ui/field';
 	import { Label } from '$lib/components/ui/label';
 	import MultiSelect, { type Option } from 'svelte-multiselect'
+	import { createToastEnhance } from '$lib/form-toast';
 
 	let { data, form } = $props();
 
 	const websitesOptions: Option[] = $derived(data.websites.map(w => {
 		return {
-			value: (w.id as unknown as string).split(':')[1],
+			value: String(w.id ?? ''),
 			label: w.url
 		}
 	}));
@@ -52,7 +54,14 @@
 		<p class="text-sm text-destructive">{form.error}</p>
 	{/if}
 
-	<form method="POST" class="space-y-3">
+	<form
+		method="POST"
+		class="space-y-3"
+		use:enhance={createToastEnhance({
+			success: 'Job created successfully.',
+			error: 'Failed to create job.'
+		})}
+	>
 		<div class="flex w-full flex-col gap-1.5">
 			<Label for="website" class="text-lg">Website</Label>
 			<MultiSelect bind:value={selectedWebsites} options={websitesOptions} maxSelect={1} required />

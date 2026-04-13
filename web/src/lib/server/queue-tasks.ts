@@ -25,12 +25,20 @@ const extractJobId = (row: Queue): string => {
 
 export const mapQueueTaskRow = (row: Queue | Queue & { job: { website: Website } }): QueueTaskRow => {
 	const id = toRouteId(normalizeRecordId(row.id));
+	const websiteUrl =
+		row.job &&
+		typeof row.job === 'object' &&
+		'website' in row.job &&
+		row.job.website &&
+		typeof row.job.website === 'object' &&
+		'url' in row.job.website
+			? String((row.job.website as Website).url ?? '')
+			: '';
 	return {
 		id,
 		job_id: extractJobId(row),
 		type: typeof row.type === 'string' ? row.type : '',
-		// @ts-ignore
-		website_url: row.job?.website.url ?? '',
+		website_url: websiteUrl,
 		target: typeof row.target === 'string' ? row.target : '',
 		status: toStatus(row.status),
 		created_at: toIsoDate(row.created_at)

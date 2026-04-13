@@ -126,7 +126,6 @@ export const POST: RequestHandler = async (event) => {
 		const options = payload.options && typeof payload.options === 'object' && !Array.isArray(payload.options) ? payload.options : null;
 
 		if (!website) return jsonError(event, 400, 'bad_request', 'website is required.');
-		if (!types.length) return jsonError(event, 400, 'bad_request', 'types must include at least one valid tool.');
 
 		let websiteRow = await withAdminDb((db) =>
 			queryOne<Website>(
@@ -150,19 +149,19 @@ export const POST: RequestHandler = async (event) => {
 
 		try {
 			const job = await withAdminDb((db) => {
-				if (options) {
-					return queryOne(
-						db,
-						'CREATE jobs CONTENT { website: $website, types: $types, status: "pending", options: $options } RETURN AFTER;',
-						{ website, types, options }
-					);
+				const payload: Record<string, unknown> = { website };
+				let sql = 'CREATE jobs CONTENT { website: $website, status: "pending"';
+				if(types.length) {
+					sql += ', types: $types';
+					payload.types = types
 				}
+				if(options) {
+					sql += ', options: $options';
+					payload.options = options;
+				}
+				sql += '} RETURN AFTER;'
 
-				return queryOne(
-					db,
-					'CREATE jobs CONTENT { website: $website, types: $types, status: "pending" } RETURN AFTER;',
-					{ website, types }
-				);
+				return queryOne( db, sql, payload );
 			});
 
 			return jsonOk(event, { job }, 201);

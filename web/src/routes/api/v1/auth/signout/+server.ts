@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { config } from '$lib/server/config';
+import { clearSessionCookies } from '$lib/server/auth';
 import { getAuthToken } from '$lib/server/auth';
 import { withUserDb } from '$lib/server/db';
 import { jsonOk } from '$lib/server/http';
@@ -26,6 +26,6 @@ export const POST: RequestHandler = async (event) => {
 		}
 	}
 
-	event.cookies.delete(config.sessionCookieName, { path: '/' });
+	clearSessionCookies(event);
 	return jsonOk(event, { success: true });
 };

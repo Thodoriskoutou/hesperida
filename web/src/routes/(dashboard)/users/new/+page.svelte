@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Select from "$lib/components/ui/select/index.js";
+	import { createToastEnhance } from '$lib/form-toast';
 
 	let { data, form } = $props();
 </script>
@@ -15,7 +17,18 @@
 		<p class="text-sm text-destructive">{form.error}</p>
 	{/if}
 
-	<form method="POST" class="space-y-3">
+	<form
+		method="POST"
+		class="space-y-3"
+		use:enhance={createToastEnhance({
+			success: ({ formData }) => {
+				const name = String(formData.get('name') ?? '').trim();
+				const email = String(formData.get('email') ?? '').trim();
+				return `User ${name || email} created successfully.`;
+			},
+			error: 'Failed to create user.'
+		})}
+	>
 		<div class="flex w-full max-w-sm flex-col gap-1.5">
 			<Label for="name" class="text-lg">Name</Label>
 			<Input id="name" name="name" placeholder="John Doe" value={form?.values?.name ?? ''} class="h-10" />
@@ -43,4 +56,3 @@
 		</div>
 	</form>
 </div>
-

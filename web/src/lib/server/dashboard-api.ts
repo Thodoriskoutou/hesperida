@@ -1,15 +1,6 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import { config } from './config';
-
-type ApiError = {
-	code?: string;
-	message?: string;
-	details?: unknown;
-};
-
-type ApiEnvelope<T> =
-	| { ok: true; data: T }
-	| { ok: false; error?: ApiError };
+import type { ApiEnvelope } from '$lib/types/api';
 
 export class DashboardApiError extends Error {
 	status: number;
@@ -74,4 +65,3 @@ export const callDashboardApi = async <T>(
 
 	return payload.data;
 };
-

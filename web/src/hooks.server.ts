@@ -1,7 +1,15 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { config, getMissingRequiredEnv } from '$lib/server/config';
-import { getAuthToken, getCurrentUser } from '$lib/server/auth';
+import {
+	clearSessionCookies,
+	extractBearerToken,
+	getAuthToken,
+	getCurrentUserStatus,
+	refreshSessionTokens,
+	setSessionCookies
+} from '$lib/server/auth';
 import { checkAuthRateLimit } from '$lib/server/rate-limit';
+import { warmPlaywrightDevicesCache } from '$lib/server/playwright-devices';
 
 const isAuthRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/auth/');
 const isScreenshotRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/screenshots/');
@@ -18,17 +26,8 @@ const isPublicDashboardRoute = (pathname: string): boolean =>
 	isPublicPdfReportRoute(pathname);
 let configValidated = false;
 
-const getJwtExpMs = (token: string): number | null => {
-	try {
-		const parts = token.split('.');
-		if (parts.length < 2 || !parts[1]) return null;
-		const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as { exp?: unknown };
-		if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
-		return payload.exp * 1000;
-	} catch {
-		return null;
-	}
-};
+// Best-effort startup warmup for local playwright devices cache.
+warmPlaywrightDevicesCache();
 
 const jsonError = (requestId: string, status: number, code: string, message: string): Response => {
 	return Response.json(
@@ -90,15 +89,54 @@ export const handle: Handle = async ({ event, resolve }) => {
 			throw redirect(303, '/auth/signin');
 		}
 
-		const user = await getCurrentUser(event.locals.authToken);
-		if (!user) {
+		const bearerToken = extractBearerToken(event.request.headers.get('authorization'));
+		const authFromCookie = !bearerToken;
+
+		let userCheck = await getCurrentUserStatus(event.locals.authToken);
+		if (!userCheck.user && authFromCookie) {
+			const accessCookie = event.cookies.get(config.sessionCookieName);
+			const refreshCookie = event.cookies.get(config.sessionRefreshCookieName);
+			if (accessCookie && refreshCookie) {
+				try {
+					const refreshed = await refreshSessionTokens(accessCookie, refreshCookie);
+					if (refreshed?.access) {
+						setSessionCookies(event, refreshed);
+						event.locals.authToken = refreshed.access;
+						userCheck = await getCurrentUserStatus(refreshed.access);
+					}
+				} catch (error) {
+					if (config.debug) {
+						const reason = error instanceof Error ? error.message : String(error);
+						console.warn(`[web-api] ${event.locals.requestId} token refresh failed: ${reason}`);
+					}
+					return new Response('Service temporarily unavailable', { status: 503 });
+				}
+			}
+		}
+
+		if (!userCheck.user) {
+			if (userCheck.transientError) {
+				if (config.debug) {
+					console.warn(`[web-api] ${event.locals.requestId} session validation failed due to transient error`);
+				}
+				return new Response('Service temporarily unavailable', { status: 503 });
+			}
 			if (config.debug) {
 				console.warn(`[web-api] ${event.locals.requestId} session validation failed; redirecting to signin`);
 			}
-			event.cookies.delete(config.sessionCookieName, { path: '/' });
+			clearSessionCookies(event);
 			throw redirect(303, '/auth/signin');
-		} else {
-			event.locals.user = user;
+		}
+
+		event.locals.user = userCheck.user;
+
+		// Sliding browser session: keep cookies alive while the user is active.
+		if (authFromCookie) {
+			const refreshCookie = event.cookies.get(config.sessionRefreshCookieName);
+			setSessionCookies(event, {
+				access: event.locals.authToken,
+				refresh: refreshCookie
+			});
 		}
 	}
 

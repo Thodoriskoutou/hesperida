@@ -7,6 +7,7 @@ import { toRouteId } from '$lib/server/record-id';
 import { techSearch, type Technology } from '$lib/server/wappalyzer';
 import { env } from '$env/dynamic/private';
 import packageJson from '../../../../../../package.json';
+import { mapProbeGeoToSummary } from '$lib/server/geo';
 
 type ScoreCard = {
 	tool: string;
@@ -31,15 +32,6 @@ type WcagDeviceSection = {
 	errors: number;
 	rows: NormalizedReportRow[];
 	screenshot_data_url: string | null;
-};
-
-type GeoSummary = {
-	lat: number | null;
-	lon: number | null;
-	countryName: string | null;
-	countryCode: string | null;
-	zip: string | null;
-	city: string | null;
 };
 
 const packageMeta = packageJson as {
@@ -357,14 +349,7 @@ export const load: PageServerLoad = async (event) => {
 					ip: asArray(probe.ipv4)[0] || asArray(probe.ipv6)[0] || '',
 					cdn_name: asString(asRecord(probe.cdn).name),
 					cdn_type: asString(asRecord(probe.cdn).type),
-					geo: {
-						lat: null,
-						lon: null,
-						countryName: null,
-						countryCode: null,
-						zip: null,
-						city: null
-					} as GeoSummary
+					geo: mapProbeGeoToSummary(probe.geo)
 				},
 				ssl: {
 					protocol: asString(ssl.protocol),
@@ -416,33 +401,6 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!report) {
 		throw error(404, 'Report not found');
-	}
-
-	const ipAddress = asString(asRecord(report.infrastructure?.probe).ip).trim();
-	if (ipAddress) {
-		try {
-			const geoRes = await event.fetch(`https://free.freeipapi.com/api/json/${ipAddress}`);
-			if (geoRes.ok) {
-				const geoData = (await geoRes.json()) as Record<string, unknown>;
-				const probe = asRecord(report.infrastructure?.probe);
-				probe.geo = {
-					lat: asNumber(geoData.latitude, Number.NaN),
-					lon: asNumber(geoData.longitude, Number.NaN),
-					countryName: asString(geoData.countryName) || null,
-					countryCode: asString(geoData.countryCode) || null,
-					zip: asString(geoData.zipCode) || null,
-					city: asString(geoData.cityName) || null
-				} as GeoSummary;
-				if (typeof (probe.geo as GeoSummary).lat === 'number' && Number.isNaN((probe.geo as GeoSummary).lat)) {
-					(probe.geo as GeoSummary).lat = null;
-				}
-				if (typeof (probe.geo as GeoSummary).lon === 'number' && Number.isNaN((probe.geo as GeoSummary).lon)) {
-					(probe.geo as GeoSummary).lon = null;
-				}
-			}
-		} catch {
-			// keep geo fields nullable in report when provider is unavailable
-		}
 	}
 
 	return { report };

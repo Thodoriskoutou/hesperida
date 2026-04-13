@@ -1,52 +1,66 @@
 import type { PageServerLoad } from './$types';
 import { callDashboardApi } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
-import type { Website } from '$lib/types';
+import type { ApiJobResults, ApiProbeResult } from '$lib/types/api';
+import { toRouteIdString } from '$lib/server/dashboard-mappers';
 import { DateTime } from 'surrealdb';
 import { formatDate } from '$lib/utils';
-import { techSearch, type Technology } from '$lib/server/wappalyzer'
+import { techSearch, type Technology } from '$lib/server/wappalyzer';
+import { mapProbeGeoToLookup } from '$lib/server/geo';
+
+type ProbeWithResolvedTech = Omit<ApiProbeResult, 'tech' | 'wp_plugins' | 'wp_themes'> & {
+	tech?: Technology[];
+	wp_plugins?: Technology[];
+	wp_themes?: Technology[];
+};
+
+const resolveTechEntries = async (entries?: string[]): Promise<Technology[]> => {
+	if (!Array.isArray(entries) || entries.length === 0) return [];
+	const found = await Promise.all(entries.map(async (entry) => techSearch(entry)));
+	return found.filter((item): item is Technology => item !== null);
+};
 
 export const load: PageServerLoad = async (event) => {
-	const data = await callDashboardApi<{ job: Record<string, unknown> }>(
+	const data = await callDashboardApi<{ job: ApiJobResults }>(
 		event,
 		`/api/v1/results/jobs/${event.params.id}`
 	);
-	const jobRouteId = toRouteId(data.job.id);
-	const websiteUrl = ((data.job.website as Website)?.url ?? '').trim();
-	const date = new DateTime(data.job.created_at as string);
+	const jobRouteId = toRouteIdString(data.job.id);
+	const websiteUrl =
+		typeof data.job.website === 'string'
+			? ''
+			: (data.job.website?.url ?? '').trim();
+	const date = new DateTime(String(data.job.created_at ?? new Date().toISOString()));
 
-	if((data as any).job.probe.tech) {
-		const techs: Technology[] = await Promise.all((data as any).job.probe.tech.map(async t => await techSearch(t)));
-		(data as any).job.probe.tech = techs;
-	}
+	const probeRaw = data.job.probe ?? null;
+	const probe: ProbeWithResolvedTech = probeRaw
+		? {
+				...probeRaw,
+				tech: await resolveTechEntries(probeRaw.tech),
+				wp_plugins: await resolveTechEntries(probeRaw.wp_plugins),
+				wp_themes: await resolveTechEntries(probeRaw.wp_themes)
+			}
+		: {
+				cdn: null,
+				favicon: null,
+				ipv4: [],
+				ipv6: [],
+				response_time: '0',
+				secure: false,
+				server: '',
+				title: '',
+				tech: [],
+				wp_plugins: [],
+				wp_themes: []
+			};
 
-	if((data as any).job.probe.wp_plugins) {
-		const wp_plugins: Technology[] = await Promise.all((data as any).job.probe.wp_plugins.map(async t => await techSearch(t)));
-		(data as any).job.probe.wp_plugins = wp_plugins;
-	}
-
-	if((data as any).job.probe.wp_themes) {
-		const wp_themes: Technology[] = await Promise.all((data as any).job.probe.wp_themes.map(async t => await techSearch(t)));
-		(data as any).job.probe.wp_themes = wp_themes;
-	}
-
-	const ipAddress = (data as any).job.probe.ipv4[0] ?? (data as any).job.probe.ipv6[0];
-
-	const geoRes = await event.fetch(`https://free.freeipapi.com/api/json/${ipAddress}`);
-	const getData = await geoRes.json();
+	const geo = mapProbeGeoToLookup(probe?.geo);
 
 	return {
 		job: {
 			...data.job,
+			probe,
 			id: jobRouteId,
-			geo: {
-				lat: getData.latitude,
-				lon: getData.longitude,
-				countryName: getData.countryName,
-				countryCode: getData.countryCode,
-				zip: getData.zipCode,
-				city: getData.cityName
-			}
+			geo
 		},
 		breadcrumbEntityLabel: `${websiteUrl} @ ${formatDate(date, true)}`,
 		breadcrumbEntityHref: `/jobs/${jobRouteId}`

@@ -1,49 +1,34 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
+import { mapQueueTaskToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 import { parseAllowedFilter } from '$lib/server/filter';
 import { queueTaskStatuses, type QueueTaskStatus } from '$lib/queue-tasks';
-import type { Queue, Website } from '$lib/types';
+import type { ApiJob, ApiQueueTask, ApiWebsite } from '$lib/types/api';
 
-type QueueTaskView = Omit<Queue, 'id'> & {
-	id: string;
-	job_id: string;
-	website_url: string;
-};
-
-const toRecordIdString = (value: unknown): string => {
-	if (typeof value === 'string') return value;
-	if (value && typeof value === 'object' && 'tb' in value && 'id' in value) {
-		const rec = value as { tb?: unknown; id?: unknown };
-		if (typeof rec.tb === 'string' && typeof rec.id === 'string') return `${rec.tb}:${rec.id}`;
-	}
-	return '';
-};
+type QueueTaskView = ReturnType<typeof mapQueueTaskToView>;
 
 export const load: PageServerLoad = async (event) => {
 	const rawFilter = event.url.searchParams.get('filter');
 
 	try {
-		const data = await callDashboardApi<{ tasks: Queue[] }>(event, '/api/v1/job-queue');
+		const data = await callDashboardApi<{ tasks: ApiQueueTask[] }>(event, '/api/v1/job-queue');
 
 		const tasks: QueueTaskView[] = await Promise.all(
 			(data.tasks ?? []).map(async (task) => {
-				const jobRecordId = toRecordIdString(task.job);
-				const jobRouteId = jobRecordId ? toRouteId(jobRecordId) : '';
+				const jobRouteId = toRouteIdString(task.job);
 				let websiteUrl = '-';
 
 				if (jobRouteId) {
 					try {
-						const jobData = await callDashboardApi<{ job: Record<string, unknown> }>(
+						const jobData = await callDashboardApi<{ job: ApiJob }>(
 							event,
 							`/api/v1/jobs/${jobRouteId}`
 						);
-						const websiteRecordId = toRecordIdString(jobData.job.website);
-						const websiteRouteId = websiteRecordId ? toRouteId(websiteRecordId) : '';
+						const websiteRouteId = toRouteIdString(jobData.job.website);
 
 						if (websiteRouteId) {
-							const websiteData = await callDashboardApi<{ website: Website }>(
+							const websiteData = await callDashboardApi<{ website: ApiWebsite }>(
 								event,
 								`/api/v1/websites/${websiteRouteId}`
 							);
@@ -54,12 +39,7 @@ export const load: PageServerLoad = async (event) => {
 					}
 				}
 
-				return {
-					...task,
-					id: toRouteId(toRecordIdString(task.id)),
-					job_id: jobRouteId,
-					website_url: websiteUrl
-				};
+				return mapQueueTaskToView(task, websiteUrl);
 			})
 		);
 

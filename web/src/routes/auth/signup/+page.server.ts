@@ -1,6 +1,6 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
-import { config } from '$lib/server/config';
-import type { ApiEnvelope } from '$lib/types';
+import { setSessionCookies } from '$lib/server/auth';
+import type { ApiEnvelope } from '$lib/types/api';
 
 export const actions: Actions = {
 	default: async (event) => {
@@ -24,9 +24,9 @@ export const actions: Actions = {
 			body: JSON.stringify({ name, email, password })
 		});
 
-		let payload: ApiEnvelope | null = null;
+		let payload: ApiEnvelope<{ token?: string; refresh_token?: string | null }> | null = null;
 		try {
-			payload = (await response.json()) as ApiEnvelope;
+			payload = (await response.json()) as ApiEnvelope<{ token?: string; refresh_token?: string | null }>;
 		} catch {
 			payload = null;
 		}
@@ -41,12 +41,9 @@ export const actions: Actions = {
 
 		const token = payload.data?.token?.trim();
 		if (token) {
-			event.cookies.set(config.sessionCookieName, token, {
-				path: '/',
-				httpOnly: true,
-				sameSite: 'lax',
-				secure: config.sessionCookieSecure,
-				maxAge: config.sessionCookieMaxAge
+			setSessionCookies(event, {
+				access: token,
+				refresh: payload.data?.refresh_token ?? null
 			});
 		}
 

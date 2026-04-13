@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { source } from "sveltekit-sse";
 	import { onDestroy, onMount } from "svelte";
 	import { goto } from '$app/navigation';
@@ -11,7 +12,8 @@
 	import MultiSelect, { type Option } from 'svelte-multiselect';
 	import type { QueueTaskRow, QueueTaskStreamEvent } from '$lib/queue-tasks';
 	import { setFilterParam } from '$lib/filter';
-  import { formatDate } from '$lib/utils.js';
+	import { createToastEnhance } from '$lib/form-toast';
+	import { formatDate } from '$lib/utils.js';
 
 	let { data, form } = $props();
 	type QueueStatus = 'all' | 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
@@ -229,7 +231,18 @@
 										{#if task.status === 'waiting'}
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item variant="destructive">
-												<form method="POST" action="?/cancel" class="w-full">
+												<form
+													method="POST"
+													action="?/cancel"
+													class="w-full"
+													use:enhance={createToastEnhance({
+														success: ({ formData }) => {
+															const id = String(formData.get('id') ?? '').trim();
+															return `Task ${id || ''} canceled successfully.`.trim();
+														},
+														error: 'Failed to cancel task.'
+													})}
+												>
 													<input type="hidden" name="id" value={task.id} />
 													<button type="submit" class="w-full text-left">Cancel</button>
 												</form>

@@ -11,6 +11,7 @@ import * as websiteById from '../../routes/api/v1/websites/[id]/+server';
 import * as websiteMembers from '../../routes/api/v1/websites/[id]/members/+server';
 import * as websiteInvite from '../../routes/api/v1/websites/[id]/invite/+server';
 import * as websiteUninvite from '../../routes/api/v1/websites/[id]/uninvite/+server';
+import * as websiteTransferOwnership from '../../routes/api/v1/websites/[id]/transfer-ownership/+server';
 import * as websiteVerify from '../../routes/api/v1/websites/[id]/verify/+server';
 
 import * as jobs from '../../routes/api/v1/jobs/+server';
@@ -53,6 +54,7 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/members$/, module: websiteMembers },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/invite$/, module: websiteInvite },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/uninvite$/, module: websiteUninvite },
+	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/transfer-ownership$/, module: websiteTransferOwnership },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)\/verify$/, module: websiteVerify },
 	{ regex: /^\/api\/v1\/websites\/(?<id>[^/]+)$/, module: websiteById },
 	{ regex: /^\/api\/v1\/jobs$/, module: jobs },

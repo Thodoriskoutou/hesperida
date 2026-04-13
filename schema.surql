@@ -171,6 +171,13 @@ DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR 
 DEFINE FIELD OVERWRITE cdn ON probe_results TYPE object | NULL FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS created_at ON probe_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS favicon ON probe_results TYPE string | NULL;
+DEFINE FIELD OVERWRITE geo ON probe_results TYPE option<object> FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS geo.lat ON probe_results TYPE float;
+DEFINE FIELD IF NOT EXISTS geo.lon ON probe_results TYPE float;
+DEFINE FIELD IF NOT EXISTS geo.country_name ON probe_results TYPE string;
+DEFINE FIELD IF NOT EXISTS geo.country_code ON probe_results TYPE string;
+DEFINE FIELD IF NOT EXISTS geo.city ON probe_results TYPE option<string>;
+DEFINE FIELD IF NOT EXISTS geo.zip ON probe_results TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS ipv4 ON probe_results TYPE option<array<option<string>>>;
 DEFINE FIELD IF NOT EXISTS ipv4.* ON probe_results TYPE option<string>;
 DEFINE FIELD IF NOT EXISTS ipv6 ON probe_results TYPE option<array<option<string>>>;

@@ -3,3 +3,5 @@ build
 svelte-kit
 .vscode
 .env
+src/lib/assets/playwright-devices.json
+lib/assets/playwright-devices.json

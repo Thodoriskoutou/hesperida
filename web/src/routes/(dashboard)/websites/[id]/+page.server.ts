@@ -1,41 +1,42 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
-import type { Job, User, Website } from '$lib/types';
+import { mapJobToView, mapUserToView, mapWebsiteToView, toRouteIdString } from '$lib/server/dashboard-mappers';
+import type { ApiJob, ApiUser, ApiWebsite } from '$lib/types/api';
 
-type WebsiteJobRow = Omit<Job, 'id'> & {
+type WebsiteJobRow = ReturnType<typeof mapJobToView> & {
 	id: string;
 };
 
 export const load: PageServerLoad = async (event) => {
-	const websiteData = await callDashboardApi<{ website: Website }>(
+	const websiteData = await callDashboardApi<{ website: ApiWebsite }>(
 		event,
 		`/api/v1/websites/${event.params.id}`
 	);
-	const memberData = await callDashboardApi<{ owner_user?: User | null; member_users?: User[] }>(
+	const memberData = await callDashboardApi<{ owner_user?: ApiUser | null; member_users?: ApiUser[] }>(
 		event,
 		`/api/v1/websites/${event.params.id}/members`
 	);
-	const jobsData = await callDashboardApi<{ jobs: Job[] }>(event, '/api/v1/jobs');
-	const websiteRouteId = toRouteId(websiteData.website.id);
+	const jobsData = await callDashboardApi<{ jobs: ApiJob[] }>(event, '/api/v1/jobs');
+	const website = mapWebsiteToView(websiteData.website);
+	const websiteRouteId = website.id;
+	const currentUserId = toRouteIdString(event.locals.user?.id ?? '');
+	const isOwner = currentUserId.length > 0 && currentUserId === website.owner_id;
 	const latestJobs: WebsiteJobRow[] = (jobsData.jobs ?? [])
-		.filter((job) => toRouteId(job.website) === websiteRouteId)
+		.filter((job) => toRouteIdString(job.website) === websiteRouteId)
 		.slice(0, 10)
-		.map((job) => ({ ...job, id: toRouteId(job.id) }));
+		.map((job) => mapJobToView(job));
 
 	return {
-		website: { ...websiteData.website, id: websiteRouteId },
+		website,
 		ownerUser: memberData.owner_user
-			? { ...memberData.owner_user, id: toRouteId(memberData.owner_user.id) }
+			? mapUserToView(memberData.owner_user)
 			: null,
-		memberUsers: (memberData.member_users ?? []).map((member) => ({
-			...member,
-			id: toRouteId(member.id)
-		})),
+		memberUsers: (memberData.member_users ?? []).map(mapUserToView),
 		latestJobs,
+		isOwner,
 		currentUserRole: event.locals.user?.role ?? null,
-		breadcrumbEntityLabel: websiteData.website.url?.trim() || `Website ${websiteRouteId}`,
+		breadcrumbEntityLabel: website.url?.trim() || `Website ${websiteRouteId}`,
 		breadcrumbEntityHref: `/websites/${websiteRouteId}`
 	};
 };
@@ -73,6 +74,29 @@ export const actions: Actions = {
 		} catch (error) {
 			if (error instanceof DashboardApiError) {
 				return fail(error.status, { uninvite_error: error.message });
+			}
+			throw error;
+		}
+	},
+	transfer_ownership: async (event) => {
+		const formData = await event.request.formData();
+		const email = String(formData.get('email') ?? '').trim();
+		if (!email) return fail(400, { transfer_error: 'email is required.' });
+
+		const keepPreviousOwnerAccess = formData.get('keep_previous_owner_access') !== null;
+
+		try {
+			await callDashboardApi(event, `/api/v1/websites/${event.params.id}/transfer-ownership`, {
+				method: 'POST',
+				body: {
+					email,
+					keep_previous_owner_access: keepPreviousOwnerAccess
+				}
+			});
+			return { transfer_success: true };
+		} catch (error) {
+			if (error instanceof DashboardApiError) {
+				return fail(error.status, { transfer_error: error.message });
 			}
 			throw error;
 		}

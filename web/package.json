@@ -3,9 +3,9 @@
 	"private": true,
 	"version": "0.5.0",
 	"type": "module",
-	"repository": { 
-		"type": "git", 
-		"url": "https://github.com/rallisf1/hesperida.git" 
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rallisf1/hesperida.git"
 	},
 	"author": {
 		"name": "John Rallis"

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import PlusIcon from '@lucide/svelte/icons/plus';
 	import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -7,7 +8,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Table from '$lib/components/ui/table';
 	import { setFilterParam } from '$lib/filter';
-  import { formatDate } from '$lib/utils.js';
+	import { createToastEnhance } from '$lib/form-toast';
+	import { formatDate } from '$lib/utils.js';
 
 	let { data, form } = $props();
 	let roleFilter = $derived<'all' | 'admin' | 'editor' | 'viewer'>(
@@ -75,7 +77,7 @@
 				{#if filteredUsers.length === 0}
 					<Table.Row><Table.Cell colspan={5} class="p-3 text-muted-foreground">No users found.</Table.Cell></Table.Row>
 				{:else}
-					{#each filteredUsers as user (user.id)}
+					{#each filteredUsers as user}
 						<Table.Row class="border-t">
 							<Table.Cell class="p-3">{user.name}</Table.Cell>
 							<Table.Cell class="p-3">{user.email}</Table.Cell>
@@ -103,15 +105,40 @@
 											{/snippet}
 										</DropdownMenu.Item>
 										<DropdownMenu.Item>
-											<form method="POST" action="?/reset_password" class="w-full">
+											<form
+												method="POST"
+												action="?/reset_password"
+												class="w-full"
+												use:enhance={createToastEnhance({
+													success: ({ formData }) => {
+														const name = String(formData.get('name') ?? '').trim();
+														const email = String(formData.get('email') ?? '').trim();
+														return `Password reset sent to ${name || email}.`;
+													},
+													error: 'Failed to send password reset email.'
+												})}
+											>
 												<input type="hidden" name="email" value={user.email} />
+												<input type="hidden" name="name" value={user.name} />
 												<button type="submit" class="w-full text-left">Reset password</button>
 											</form>
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item variant="destructive">
-											<form method="POST" action="?/delete" class="w-full">
+											<form
+												method="POST"
+												action="?/delete"
+												class="w-full"
+												use:enhance={createToastEnhance({
+													success: ({ formData }) => {
+														const name = String(formData.get('name') ?? '').trim();
+														return `User ${name || 'account'} deleted successfully.`;
+													},
+													error: 'Failed to delete user.'
+												})}
+											>
 												<input type="hidden" name="id" value={user.id} />
+												<input type="hidden" name="name" value={user.name} />
 												<button type="submit" class="w-full text-left">Delete</button>
 											</form>
 										</DropdownMenu.Item>

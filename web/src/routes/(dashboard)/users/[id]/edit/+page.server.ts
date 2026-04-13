@@ -1,20 +1,17 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { toRouteId } from '$lib/server/record-id';
-import type { User } from '$lib/types';
+import { mapUserToView } from '$lib/server/dashboard-mappers';
+import type { ApiUser } from '$lib/types/api';
 
 export const load: PageServerLoad = async (event) => {
-	const data = await callDashboardApi<{ user: User }>(event, `/api/v1/users/${event.params.id}`);
-	const userRouteId = toRouteId(data.user.id);
+	const data = await callDashboardApi<{ user: ApiUser }>(event, `/api/v1/users/${event.params.id}`);
+	const user = mapUserToView(data.user);
+	const userRouteId = user.id;
 	return {
-		user: {
-			...data.user,
-			id: userRouteId
-		},
+		user,
 		currentUserRole: event.locals.user?.role ?? null,
-		breadcrumbEntityLabel:
-			data.user.name?.trim() || data.user.email?.trim() || `User ${userRouteId}`,
+		breadcrumbEntityLabel: user.name?.trim() || user.email?.trim() || `User ${userRouteId}`,
 		breadcrumbEntityHref: `/users/${userRouteId}`
 	};
 };
@@ -31,7 +28,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await callDashboardApi<{ user: User }>(event, `/api/v1/users/${event.params.id}`, {
+			await callDashboardApi<{ user: ApiUser }>(event, `/api/v1/users/${event.params.id}`, {
 				method: 'PATCH',
 				body: { name, email, role }
 			});

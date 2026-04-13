@@ -10,6 +10,10 @@
 	import GithubStar from "$lib/components/ui/button/github-star.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
 	import { page } from "$app/state";
+	import { goto } from "$app/navigation";
+	import { onDestroy, onMount } from "svelte";
+	import { source } from "sveltekit-sse";
+	import { toast } from "svelte-sonner";
 	import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
 	import NavMain from "$lib/components/nav-main.svelte";
 	import NavUser from "$lib/components/nav-user.svelte";
@@ -18,10 +22,14 @@
 	import { Switch } from "$lib/components/ui/switch/index.js";
 	import { Label } from "$lib/components/ui/label/index.js";
 	import { toggleMode, mode } from "mode-watcher";
+	import type { DashboardNotificationEvent } from "$lib/notifications";
 
 	let { data, children } = $props();
 
 	let darkMode = $state(mode.current === "dark");
+	let notificationsConnection: ReturnType<typeof source> | null = null;
+	let notificationsUnsubscribe: (() => void) | null = null;
+	const seenNotificationEvents = new Set<string>();
 
 	export const navMain = [
 		{ title: "Home", url: "/", icon: HouseIcon },
@@ -123,6 +131,36 @@
 		}
 
 		return items;
+	});
+
+	onMount(() => {
+		notificationsConnection = source("/streams/notifications");
+		const stream = notificationsConnection
+			.select("notifications")
+			.json<DashboardNotificationEvent>();
+		notificationsUnsubscribe = stream.subscribe((event) => {
+			if (!event?.event_id) return;
+			if (seenNotificationEvents.has(event.event_id)) return;
+			seenNotificationEvents.add(event.event_id);
+
+			const action = event.href
+				? {
+					label: "View",
+					onClick: () => void goto(event.href)
+				}
+				: undefined;
+
+			if (event.status === "failed") {
+				toast.error(event.message, { action });
+				return;
+			}
+			toast.success(event.message, { action });
+		});
+	});
+
+	onDestroy(() => {
+		notificationsUnsubscribe?.();
+		notificationsConnection?.close();
 	});
 </script>
 

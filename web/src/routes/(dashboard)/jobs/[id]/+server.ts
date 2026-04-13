@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { config } from '$lib/server/config';
+import type { ApiJob } from '$lib/types/api';
 
 const jsonError = (status: number, code: string, message: string): Response =>
 	Response.json(
@@ -12,9 +13,9 @@ const jsonError = (status: number, code: string, message: string): Response =>
 	);
 
 export const POST: RequestHandler = async (event) => {
-	let job: Record<string, unknown> | null = null;
+	let job: ApiJob | null = null;
 	try {
-		const data = await callDashboardApi<{ job: Record<string, unknown> }>(
+		const data = await callDashboardApi<{ job: ApiJob }>(
 			event,
 			`/api/v1/jobs/${event.params.id}`
 		);
@@ -86,4 +87,3 @@ export const POST: RequestHandler = async (event) => {
 
 	return new Response(gotenbergResponse.body, { status: 200, headers });
 };
-

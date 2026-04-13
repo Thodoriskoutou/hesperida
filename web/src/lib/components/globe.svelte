@@ -11,7 +11,7 @@
 
   let { point, trigger, width = 500, height = 500, scale = 200 }: { point: Point; trigger?: MouseEventHandler<SVGCircleElement>, width?: number, height?: number, scale?: number } = $props();
   
-  //@ts-ignore
+  // @ts-expect-error TODO(upstream typings): topojson world JSON object typing is incompatible with feature() generics.
   let countries = $derived(feature(world, world.objects.countries).features);
 
   // 2. Setup Projection (Orthographic = Globe)
@@ -21,7 +21,7 @@
     .rotate([-point.lon, -point.lat]));
 
   let pathGenerator = $derived(geoPath().projection(projection));
-  //@ts-ignore
+  // @ts-expect-error TODO(upstream typings): d3 projection tuple inference is incomplete here.
   let [x, y] = $derived(projection([point.lon, point.lat]));
 
 </script>

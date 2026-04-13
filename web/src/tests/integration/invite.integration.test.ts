@@ -248,6 +248,245 @@ describe('API Website Invite Integration', () => {
 		expect(unknownRes.json.error.code).toBe('not_found');
 	});
 
+	test('owner can transfer ownership to existing user and keep previous owner as member', async () => {
+		const ownerEmail = randomEmail('transfer_owner_keep');
+		const ownerPassword = 'pass12345';
+		const targetEmail = randomEmail('transfer_target_keep');
+		const targetPassword = 'pass12345';
+
+		const owner = await createUser({
+			name: 'Transfer Owner Keep',
+			email: ownerEmail,
+			password: ownerPassword,
+			role: 'editor'
+		});
+		const target = await createUser({
+			name: 'Transfer Target Keep',
+			email: targetEmail,
+			password: targetPassword,
+			role: 'viewer'
+		});
+		if (!owner || !target) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'transfer keep website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const path = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/transfer-ownership`;
+		const res = await client.call({
+			method: 'POST',
+			path,
+			body: {
+				email: targetEmail,
+				keep_previous_owner_access: true
+			}
+		});
+
+		expect(res.response.status).toBe(200);
+		expect(res.json.ok).toBeTrue();
+
+		const refreshed = await adminOne<{ owner?: string; users?: string[] }>(
+			'SELECT owner, users FROM websites WHERE id = type::record($id) LIMIT 1;',
+			{ id: normalizeRecordId(website.id) }
+		);
+		const ownerId = normalizeRecordId(refreshed?.owner);
+		const members = (refreshed?.users ?? []).map((id) => normalizeRecordId(id));
+		expect(ownerId).toBe(normalizeRecordId(target.id));
+		expect(members.includes(normalizeRecordId(owner.id))).toBeTrue();
+		expect(members.includes(normalizeRecordId(target.id))).toBeFalse();
+	});
+
+	test('owner can transfer ownership and remove previous owner access', async () => {
+		const ownerEmail = randomEmail('transfer_owner_remove');
+		const ownerPassword = 'pass12345';
+		const targetEmail = randomEmail('transfer_target_remove');
+		const targetPassword = 'pass12345';
+
+		const owner = await createUser({
+			name: 'Transfer Owner Remove',
+			email: ownerEmail,
+			password: ownerPassword,
+			role: 'editor'
+		});
+		const target = await createUser({
+			name: 'Transfer Target Remove',
+			email: targetEmail,
+			password: targetPassword,
+			role: 'viewer'
+		});
+		if (!owner || !target) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'transfer remove website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const path = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/transfer-ownership`;
+		const res = await client.call({
+			method: 'POST',
+			path,
+			body: {
+				email: targetEmail,
+				keep_previous_owner_access: false
+			}
+		});
+
+		expect(res.response.status).toBe(200);
+		expect(res.json.ok).toBeTrue();
+
+		const refreshed = await adminOne<{ owner?: string; users?: string[] }>(
+			'SELECT owner, users FROM websites WHERE id = type::record($id) LIMIT 1;',
+			{ id: normalizeRecordId(website.id) }
+		);
+		const members = (refreshed?.users ?? []).map((id) => normalizeRecordId(id));
+		expect(normalizeRecordId(refreshed?.owner)).toBe(normalizeRecordId(target.id));
+		expect(members.includes(normalizeRecordId(owner.id))).toBeFalse();
+	});
+
+	test('owner can transfer ownership to unknown email and create placeholder user', async () => {
+		const ownerEmail = randomEmail('transfer_owner_unknown');
+		const ownerPassword = 'pass12345';
+		const unknownEmail = randomEmail('transfer_unknown_user');
+
+		const owner = await createUser({
+			name: 'Transfer Owner Unknown',
+			email: ownerEmail,
+			password: ownerPassword,
+			role: 'editor'
+		});
+		if (!owner) throw new Error('Failed to create owner');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'transfer unknown website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const path = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/transfer-ownership`;
+		const res = await client.call({
+			method: 'POST',
+			path,
+			body: { email: unknownEmail }
+		});
+
+		expect(res.response.status).toBe(200);
+
+		const createdUser = await adminOne<{ id: string; role?: string; forgot_token?: string | null }>(
+			'SELECT id, role, forgot_token FROM users WHERE email = $email LIMIT 1;',
+			{ email: unknownEmail }
+		);
+		expect(createdUser).toBeTruthy();
+		expect(createdUser?.role).toBe('viewer');
+		expect(createdUser?.forgot_token).toBeTruthy();
+
+		const refreshed = await adminOne<{ owner?: string }>(
+			'SELECT owner FROM websites WHERE id = type::record($id) LIMIT 1;',
+			{ id: normalizeRecordId(website.id) }
+		);
+		expect(normalizeRecordId(refreshed?.owner)).toBe(normalizeRecordId(createdUser!.id));
+	});
+
+	test('non-owner cannot transfer ownership', async () => {
+		const ownerEmail = randomEmail('transfer_owner_forbidden');
+		const ownerPassword = 'pass12345';
+		const memberEmail = randomEmail('transfer_member_forbidden');
+		const memberPassword = 'pass12345';
+		const targetEmail = randomEmail('transfer_target_forbidden');
+		const targetPassword = 'pass12345';
+
+		const owner = await createUser({ name: 'Owner Forbidden', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		const member = await createUser({ name: 'Member Forbidden', email: memberEmail, password: memberPassword, role: 'editor' });
+		const target = await createUser({ name: 'Target Forbidden', email: targetEmail, password: targetPassword, role: 'viewer' });
+		if (!owner || !member || !target) throw new Error('Failed to create users');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'transfer forbidden website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		await adminOne(
+			'UPDATE websites SET users = array::distinct(array::append(users, type::record($memberId))) WHERE id = type::record($id) RETURN AFTER;',
+			{
+				id: normalizeRecordId(website.id),
+				memberId: normalizeRecordId(member.id)
+			}
+		);
+
+		const memberToken = await signinExistingUser(memberEmail, memberPassword);
+		const client = new ApiTestClient({ bearerToken: memberToken });
+		const path = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/transfer-ownership`;
+		const res = await client.call({
+			method: 'POST',
+			path,
+			body: { email: targetEmail }
+		});
+
+		expect(res.response.status).toBe(403);
+		expect(res.json.error.code).toBe('forbidden');
+	});
+
+	test('transfer rejects self-transfer and rolls back on notification failure', async () => {
+		const ownerEmail = randomEmail('transfer_owner_self');
+		const ownerPassword = 'pass12345';
+		const failEmail = `transfer_fail_${Math.random().toString(36).slice(2, 8)}@example.test`;
+
+		const owner = await createUser({ name: 'Owner Self', email: ownerEmail, password: ownerPassword, role: 'editor' });
+		if (!owner) throw new Error('Failed to create owner');
+
+		const website = await createWebsite({
+			user: normalizeRecordId(owner.id),
+			url: `https://${Math.random().toString(36).slice(2, 8)}.example.test`,
+			description: 'transfer self/fail website'
+		});
+		if (!website) throw new Error('Failed to create website');
+
+		const ownerToken = await signinExistingUser(ownerEmail, ownerPassword);
+		const client = new ApiTestClient({ bearerToken: ownerToken });
+		const path = `/api/v1/websites/${encodeURIComponent(toRouteId(normalizeRecordId(website.id)))}/transfer-ownership`;
+
+		const selfRes = await client.call({
+			method: 'POST',
+			path,
+			body: { email: ownerEmail }
+		});
+		expect(selfRes.response.status).toBe(400);
+		expect(selfRes.json.error.code).toBe('bad_request');
+
+		const failRes = await client.call({
+			method: 'POST',
+			path,
+			body: { email: failEmail }
+		});
+		expect(failRes.response.status).toBe(502);
+		expect(failRes.json.error.code).toBe('notification_failed');
+
+		const failedCreated = await adminOne<{ id: string }>(
+			'SELECT id FROM users WHERE email = $email LIMIT 1;',
+			{ email: failEmail }
+		);
+		expect(failedCreated).toBeNull();
+
+		const refreshed = await adminOne<{ owner?: string }>(
+			'SELECT owner FROM websites WHERE id = type::record($id) LIMIT 1;',
+			{ id: normalizeRecordId(website.id) }
+		);
+		expect(normalizeRecordId(refreshed?.owner)).toBe(normalizeRecordId(owner.id));
+	});
+
 	test('viewer cannot uninvite users', async () => {
 		const ownerEmail = randomEmail('uninvite_owner_viewer');
 		const ownerPassword = 'pass12345';

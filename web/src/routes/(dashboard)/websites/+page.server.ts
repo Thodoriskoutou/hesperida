@@ -2,22 +2,34 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { parseAllowedFilter } from '$lib/server/filter';
-import type { Website } from '$lib/types';
+import type { ApiJob, ApiWebsite } from '$lib/types/api';
+import { mapWebsiteToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 
 export const load: PageServerLoad = async (event) => {
 	const allowedFilters = ['all', 'verified', 'unverified'] as const;
 	const initialFilter = parseAllowedFilter(event.url.searchParams.get('filter'), allowedFilters, 'all');
 
 	try {
-		const data = await callDashboardApi<{ websites: Website[] }>(event, '/api/v1/websites');
+		const [websiteData, jobData] = await Promise.all([
+			callDashboardApi<{ websites: ApiWebsite[] }>(event, '/api/v1/websites'),
+			callDashboardApi<{ jobs: ApiJob[] }>(event, '/api/v1/jobs')
+		]);
+		const websiteJobCounts = (jobData.jobs ?? []).reduce<Record<string, number>>((acc, job) => {
+			const websiteId = toRouteIdString(job.website);
+			if (!websiteId) return acc;
+			acc[websiteId] = (acc[websiteId] ?? 0) + 1;
+			return acc;
+		}, {});
+
 		return {
-			websites: data.websites ?? [],
+			websites: (websiteData.websites ?? []).map(mapWebsiteToView),
+			websiteJobCounts,
 			initialFilter,
 			error: null
 		};
 	} catch (error) {
 		if (error instanceof DashboardApiError) {
-			return { websites: [], initialFilter, error: error.message };
+			return { websites: [], websiteJobCounts: {}, initialFilter, error: error.message };
 		}
 		throw error;
 	}

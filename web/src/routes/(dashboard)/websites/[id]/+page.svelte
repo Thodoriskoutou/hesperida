@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import UserMinusIcon from '@lucide/svelte/icons/user-minus';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
@@ -6,9 +7,12 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Table from '$lib/components/ui/table';
 	import * as Item from '$lib/components/ui/item/index.js';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { formatDate } from '$lib/utils';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import { formatDate } from '$lib/utils';
+	import { createToastEnhance } from '$lib/form-toast';
+    import * as Field from '$lib/components/ui/field/index.js';
+  import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 
 	let { data, form } = $props();
 
@@ -83,7 +87,17 @@
 							</Item.Content>
 							{#if data.currentUserRole !== 'viewer'}
 							<Item.Action>
-								<form method="POST" action="?/uninvite">
+								<form
+									method="POST"
+									action="?/uninvite"
+									use:enhance={createToastEnhance({
+										success: ({ formData }) => {
+											const email = String(formData.get('email') ?? '').trim();
+											return `User ${email || 'member'} removed from website.`;
+										},
+										error: 'Failed to remove member.'
+									})}
+								>
 									<input type="hidden" name="email" value={member.email} />
 									<Button type="submit" variant="outline">
 										<UserMinusIcon class="size-4" />
@@ -103,14 +117,57 @@
 
 		<div class="rounded-md border p-4 space-y-2">
 			<Label for="email-invite" class="text-lg font-semibold">Invite Member</Label>
-			<form method="POST" action="?/invite" class="flex w-full max-w-sm items-center gap-2">
-				<Input type="email" id="email-invite" placeholder="user@example.com" />
+			<form
+				method="POST"
+				action="?/invite"
+				class="flex w-full max-w-sm items-center gap-2"
+				use:enhance={createToastEnhance({
+					success: ({ formData }) => {
+						const email = String(formData.get('email') ?? '').trim();
+						return `Invite sent to ${email || 'user'}.`;
+					},
+					error: 'Failed to invite user.'
+				})}
+			>
+				<Input type="email" id="email-invite" name="email" placeholder="user@example.com" />
 				<Button type="submit" variant="outline">Invite</Button>
 			</form>
 			{#if form?.invite_error}
 				<p class="text-sm text-destructive">{form.invite_error}</p>
 			{/if}
 		</div>
+
+		{#if data.isOwner}
+			<div class="rounded-md border p-4 space-y-2">
+				<Label for="email-transfer" class="text-lg font-semibold">Transfer Ownership</Label>
+				<form
+					method="POST"
+					action="?/transfer_ownership"
+					class="space-y-3"
+					use:enhance={createToastEnhance({
+						success: ({ formData }) => {
+							const email = String(formData.get('email') ?? '').trim();
+							return `Ownership transferred to ${email || 'user'}.`;
+						},
+						error: 'Failed to transfer ownership.'
+					})}
+				>
+					<div class="flex w-full max-w-sm flex-col gap-2">
+						<Input type="email" id="email-transfer" name="email" placeholder="new-owner@example.com" />
+						<Field.Field orientation="horizontal" class="mb-2">
+							<Checkbox name="keep_previous_owner_access" id="keep_previous_owner_access" checked={true} />
+							<Field.Label for="keep_previous_owner_access" class="font-normal">
+								Keep my access as member
+							</Field.Label>
+						</Field.Field>
+						<Button type="submit" variant="outline">Transfer Ownership</Button>
+					</div>
+				</form>
+				{#if form?.transfer_error}
+					<p class="text-sm text-destructive">{form.transfer_error}</p>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
 	<div class="rounded-md border">

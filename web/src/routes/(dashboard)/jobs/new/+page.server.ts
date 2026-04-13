@@ -1,36 +1,21 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import type { Tool, Website } from '$lib/types';
-
-interface Device {
-	name: string;
-	resolution: string;
-	isMobile: boolean;
-}
+import type { Tool } from '$lib/types';
+import type { ApiWebsite } from '$lib/types/api';
+import { mapWebsiteToView } from '$lib/server/dashboard-mappers';
+import { getPlaywrightDevices } from '$lib/server/playwright-devices';
 
 export const load: PageServerLoad = async (event) => {
 	const rawPrefillWebsiteId = String(event.url.searchParams.get('website_id') ?? '').trim();
 	const prefillWebsiteId = rawPrefillWebsiteId.includes(':')
 		? rawPrefillWebsiteId.split(':').pop() ?? ''
 		: rawPrefillWebsiteId;
-	const devicesRes = await event.fetch('https://raw.githubusercontent.com/microsoft/playwright/refs/heads/main/packages/playwright-core/src/server/deviceDescriptorsSource.json');
-	const devicesRaw = await devicesRes.json();
+	const devices = await getPlaywrightDevices();
 
-	const devices: Device[] = [];
-	for (const [key, value] of Object.entries(devicesRaw)) {
-		devices.push({
-			name: key,
-			//@ts-ignore
-			resolution: value.viewport.width + 'x' + value.viewport.height,
-			//@ts-ignore
-			isMobile: value.isMobile
-		})
-	}
-
-	const websitesData = await callDashboardApi<{ websites: Website[] }>(event, '/api/v1/websites');
+	const websitesData = await callDashboardApi<{ websites: ApiWebsite[] }>(event, '/api/v1/websites');
 	return {
-		websites: websitesData.websites ?? [],
+		websites: (websitesData.websites ?? []).map(mapWebsiteToView),
 		devices,
 		prefillWebsiteId
 	};

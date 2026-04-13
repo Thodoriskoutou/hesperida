@@ -71,6 +71,14 @@ export interface Probe {
         type: string;
     } | null;
     favicon: string | null;
+    geo?: {
+        lat: number;
+        lon: number;
+        country_name: string;
+        country_code: string;
+        city?: string;
+        zip?: string;
+    };
     ipv4?: string[];
     ipv6?: string[];
     response_time: string;

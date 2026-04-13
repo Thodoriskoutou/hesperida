@@ -1,8 +1,9 @@
 import type { RequestEvent } from '@sveltejs/kit';
+import { serializeApiData } from './api-serializer';
 
 export const jsonOk = (event: RequestEvent, data: unknown, status = 200): Response => {
 	return Response.json(
-		{ ok: true, request_id: event.locals.requestId, data },
+		{ ok: true, request_id: event.locals.requestId, data: serializeApiData(data) },
 		{ status }
 	);
 };

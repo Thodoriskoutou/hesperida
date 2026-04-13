@@ -30,6 +30,7 @@
 	type TechEntry = {
 		name: string;
 		description: string | null;
+		icon?: string | null;
 	};
 
 	type ReportPayload = {
@@ -222,6 +223,8 @@
 			{ key: 'wp_themes', title: 'WordPress Themes', items: source.wp_themes ?? [] }
 		].filter((column) => Array.isArray(column.items) && column.items.length > 0);
 	});
+
+	const iconSrc = (icon: string): string => `/wappalyzer/${encodeURIComponent(icon)}`;
 </script>
 
 <svelte:head>
@@ -302,7 +305,7 @@
 		{#if report.pain_points.length === 0}
 			<p class="muted">No high-priority pain points were detected.</p>
 		{:else}
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Severity</Table.Head>
@@ -315,7 +318,7 @@
 						<Table.Row>
 							<Table.Cell><span class={`badge ${severityClass(point.severity)}`}>{point.severity}</span></Table.Cell>
 							<Table.Cell>{point.title}</Table.Cell>
-							<Table.Cell>{point.detail}</Table.Cell>
+							<Table.Cell class="whitespace-break-spaces break">{point.detail}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
@@ -396,6 +399,9 @@
 						<ul>
 							{#each column.items as item (`${column.key}-${item.name}`)}
 								<li>
+									{#if item.icon}
+										<img class="tech-icon" src={iconSrc(item.icon)} alt={item.name} />
+									{/if}
 									<strong>{item.name}:</strong>
 									{item.description?.trim() || 'No description available'}
 								</li>
@@ -412,7 +418,7 @@
 		{#if report.infrastructure.whois.length === 0}
 			<p class="muted">No whois records were collected.</p>
 		{:else}
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>IP</Table.Head>
@@ -442,7 +448,7 @@
 		{#if dnsRows.length === 0}
 			<p class="muted">No DNS records were collected.</p>
 		{:else}
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Type</Table.Head>
@@ -455,7 +461,7 @@
 						<Table.Row>
 							<Table.Cell>{row.type}</Table.Cell>
 							<Table.Cell class="mono">{row.name}</Table.Cell>
-							<Table.Cell class="mono break">{row.value}</Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break">{row.value}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
@@ -477,7 +483,7 @@
 					{#if wcag.screenshot_data_url}
 						<img class="wcag-shot" src={wcag.screenshot_data_url} alt={`WCAG screenshot (${wcag.device})`} />
 					{/if}
-					<Table.Root>
+					<Table.Root class="overflow-x-clip">
 						<Table.Header>
 							<Table.Row>
 								<Table.Head>Status</Table.Head>
@@ -494,7 +500,7 @@
 									<Table.Cell>{row.group}</Table.Cell>
 									<Table.Cell>{row.check}</Table.Cell>
 									<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-									<Table.Cell>
+									<Table.Cell class="mono whitespace-break-spaces break">
 										<div>{row.summary}</div>
 										{#if toDetailLines(row.details).length}
 											<ul class="details">
@@ -516,7 +522,7 @@
 	{#if report.tables.security.length > 0}
 		<section class="section page-break">
 			<h2>Security Findings</h2>
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Status</Table.Head>
@@ -533,7 +539,7 @@
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
 							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -553,7 +559,7 @@
 	{#if report.tables.seo.length > 0}
 		<section class="section page-break">
 			<h2>SEO Findings</h2>
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Status</Table.Head>
@@ -570,7 +576,7 @@
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
 							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -590,7 +596,7 @@
 	{#if report.tables.stress.length > 0}
 		<section class="section page-break">
 			<h2>Performance (Stress) Findings</h2>
-			<Table.Root>
+			<Table.Root class="overflow-x-clip">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Status</Table.Head>
@@ -607,7 +613,7 @@
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
 							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -869,6 +875,15 @@
 		gap: 6px;
 	}
 
+	.tech-icon {
+		width: 16px;
+		height: 16px;
+		flex: 0 0 16px;
+		object-fit: contain;
+		display: inline;
+    	vertical-align: baseline;
+	}
+
 	.muted {
 		color: #4b5563;
 		font-size: 0.9rem;
@@ -999,6 +1014,10 @@
 
 	.fine-print p {
 		margin: 2px 0;
+	}
+
+	:global(.dark .text-foreground) {
+		color: var(--background);
 	}
 
 	@media print {
