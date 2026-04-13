@@ -168,7 +168,7 @@ DEFINE EVENT IF NOT EXISTS job_queue_cancel ON job_queue WHEN $event = 'UPDATE' 
 
 DEFINE TABLE IF NOT EXISTS probe_results TYPE NORMAL SCHEMAFULL PERMISSIONS FOR create, update, delete NONE, FOR select WHERE job.website.owner = $auth.id OR $auth.id IN job.website.users;
 
-DEFINE FIELD OVERWRITE cdn ON probe_results TYPE object FLEXIBLE;
+DEFINE FIELD OVERWRITE cdn ON probe_results TYPE object | NULL FLEXIBLE;
 DEFINE FIELD IF NOT EXISTS created_at ON probe_results TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD IF NOT EXISTS favicon ON probe_results TYPE string | NULL;
 DEFINE FIELD IF NOT EXISTS ipv4 ON probe_results TYPE option<array<option<string>>>;

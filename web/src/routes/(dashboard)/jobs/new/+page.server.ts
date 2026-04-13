@@ -1,14 +1,33 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
-import { tools } from '$lib/constants';
 import type { Tool, Website } from '$lib/types';
 
+interface Device {
+	name: string;
+	resolution: string;
+	isMobile: boolean;
+}
+
 export const load: PageServerLoad = async (event) => {
+	const devicesRes = await event.fetch('https://raw.githubusercontent.com/microsoft/playwright/refs/heads/main/packages/playwright-core/src/server/deviceDescriptorsSource.json');
+	const devicesRaw = await devicesRes.json();
+
+	const devices: Device[] = [];
+	for (const [key, value] of Object.entries(devicesRaw)) {
+		devices.push({
+			name: key,
+			//@ts-ignore
+			resolution: value.viewport.width + 'x' + value.viewport.height,
+			//@ts-ignore
+			isMobile: value.isMobile
+		})
+	}
+
 	const websitesData = await callDashboardApi<{ websites: Website[] }>(event, '/api/v1/websites');
 	return {
 		websites: websitesData.websites ?? [],
-		tools
+		devices
 	};
 };
 
@@ -17,24 +36,15 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		const website = String(formData.get('website') ?? '').trim();
 		const selectedTools = formData.getAll('types').map((v) => String(v).trim()) as Tool[];
-		const optionsRaw = String(formData.get('options') ?? '').trim();
+		const selectedDevices = formData.getAll('devices').map((v) => String(v).trim());
 
-		if (!website || selectedTools.length === 0) {
-			return fail(400, { error: 'website and at least one tool are required.' });
+		if (!website) {
+			return fail(400, { error: 'website is required.', values: { website, types: selectedTools, devices: selectedDevices } });
 		}
 
-		let options: Record<string, unknown> | undefined = undefined;
-		if (optionsRaw) {
-			try {
-				const parsed = JSON.parse(optionsRaw);
-				if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-					return fail(400, { error: 'options must be a JSON object.' });
-				}
-				options = parsed as Record<string, unknown>;
-			} catch {
-				return fail(400, { error: 'options must be valid JSON.' });
-			}
-		}
+		const options: any = {};
+		options.wcag = {};
+		options.wcag.devices = selectedDevices;
 
 		try {
 			await callDashboardApi(event, '/api/v1/jobs', {
@@ -47,7 +57,7 @@ export const actions: Actions = {
 			});
 		} catch (error) {
 			if (error instanceof DashboardApiError) {
-				return fail(error.status, { error: error.message });
+				return fail(error.status, { error: error.message , values: { website, types: selectedTools, devices: selectedDevices } });
 			}
 			throw error;
 		}

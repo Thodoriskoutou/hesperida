@@ -19,6 +19,7 @@ const appriseUrl = read('APPRISE_URL');
 const appriseApiKey = read('APPRISE_API_KEY');
 const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE');
 const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
+const gotenbergUrl = read('GOTENBERG_URL') || 'http://pdf:3000';
 const websiteVerificationTtlRaw = read('WEBSITE_VERIFICATION_TTL_SECONDS') || '604800';
 const websiteVerificationTtlSeconds = Number.parseInt(websiteVerificationTtlRaw, 10);
 if (!Number.isFinite(websiteVerificationTtlSeconds) || websiteVerificationTtlSeconds < 1) {
@@ -39,6 +40,7 @@ export const config = {
 	appriseApiKey,
 	notificationEmailTargetTemplate,
 	notificationBrandLogoUrl,
+	gotenbergUrl,
 	websiteVerificationTtlSeconds,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),
@@ -50,6 +52,7 @@ export const config = {
 	sessionCookieName: read('SESSION_COOKIE_NAME') || 'hesperida_session',
 	sessionCookieSecure: (read('SESSION_COOKIE_SECURE') || 'false').toLowerCase() === 'true',
 	sessionCookieMaxAge: Number.parseInt(read('SESSION_COOKIE_MAX_AGE') || `${60 * 60}`, 10),
+	wappalyzerDB: read('WP_PATH') || '/app/wappalyzer.db',
 	debug: (read('DEBUG') || 'false').toLowerCase() === 'true'
 } as const;
 

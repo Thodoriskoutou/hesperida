@@ -188,13 +188,17 @@ services:
       - "WEB_API_KEY=${WEB_API_KEY:-changeme}"
       - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
       - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
+      - "WP_PATH=${APPRISE_API_KEY:-/app/wappalyzer.db}"
       - "NOTIFICATION_EMAIL_TARGET_TEMPLATE=${NOTIFICATION_EMAIL_TARGET_TEMPLATE:-mailto://{{email}}}"
       - "NOTIFICATION_BRAND_LOGO_URL=${NOTIFICATION_BRAND_LOGO_URL:-https://example.com/logo.png}"
       - "SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME:-hesperida_session}"
       - "SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}"
       - "SESSION_COOKIE_MAX_AGE=${SESSION_COOKIE_MAX_AGE:-3600}"
+      - "GOTENBERG_URL=${GOTENBERG_URL:-http://pdf:3000}"
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    volumes:
+      - ./data/wappalyzer/db.sqlite:/app/wappalyzer.db:ro
     healthcheck:
       test:
         [
@@ -225,6 +229,21 @@ services:
       retries: 3
       start_period: 20s
   
+  pdf:
+    restart: always
+    image: 'gotenberg/gotenberg:latest'
+    profiles: ["backend", "aio"]
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      interval: 60s
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - 'http://gotenberg:3000/health'
+      timeout: 10s
+
   db:
     restart: always
     image: surrealdb/surrealdb:latest

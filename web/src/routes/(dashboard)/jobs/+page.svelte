@@ -5,8 +5,9 @@
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { setFilterParam } from '$lib/filter';
-  import { formatDate } from '$lib/utils.js';
+	import { formatDate } from '$lib/utils.js';
 
 	let { data } = $props();
 	let statusFilter = $derived<'all' | 'pending' | 'processing' | 'completed' | 'failed'>((data.initialFilter ?? 'all') as 'all' | 'pending' | 'processing' | 'completed' | 'failed');
@@ -16,6 +17,20 @@
 		if (statusFilter === 'all') return jobs;
 		return jobs.filter((job: { status?: string }) => job.status === statusFilter);
 	});
+
+	const statusBadgeVariant = (status?: string) => {
+		switch (status) {
+			case 'completed':
+				return 'secondary';
+			case 'failed':
+				return 'destructive';
+			case 'processing':
+				return 'default';
+			case 'pending':
+			default:
+				return 'outline';
+		}
+	};
 
 	const selectFilter = async (filter: 'all' | 'pending' | 'processing' | 'completed' | 'failed') => {
 		statusFilter = filter;
@@ -53,7 +68,7 @@
 		<table class="w-full text-sm">
 			<thead class="bg-muted/50">
 				<tr>
-					<th class="text-left p-3">ID</th>
+					<th class="text-left p-3">Website URL</th>
 					<th class="text-left p-3">Tools</th>
 					<th class="text-left p-3">Status</th>
 					<th class="text-left p-3">Created</th>
@@ -66,10 +81,22 @@
 				{:else}
 					{#each filteredJobs as job (job.id)}
 						<tr class="border-t">
-							<td class="p-3">{job.id}</td>
-							<td class="p-3">{(job.types ?? []).join(', ') || '-'}</td>
-							<td class="p-3">{job.status ?? '-'}</td>
-							<td class="p-3">{formatDate(job.created_at)}</td>
+							<td class="p-3">{job.website_url || '-'}</td>
+							<td class="p-3">
+								<div class="flex flex-wrap gap-1">
+									{#if (job.types ?? []).length === 0}
+										<span>-</span>
+									{:else}
+										{#each job.types ?? [] as tool (tool)}
+											<Badge variant="outline">{tool}</Badge>
+										{/each}
+									{/if}
+								</div>
+							</td>
+							<td class="p-3">
+								<Badge variant={statusBadgeVariant(job.status)}>{job.status ?? 'pending'}</Badge>
+							</td>
+							<td class="p-3">{formatDate(job.created_at, true)}</td>
 							<td class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>
@@ -84,11 +111,6 @@
 										<DropdownMenu.Item>
 											{#snippet child({ props })}
 												<a href={`/jobs/${job.id}`} {...props}>View</a>
-											{/snippet}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item>
-											{#snippet child({ props })}
-												<a href={`/jobs/${job.id}/edit`} {...props}>Edit</a>
 											{/snippet}
 										</DropdownMenu.Item>
 									</DropdownMenu.Content>

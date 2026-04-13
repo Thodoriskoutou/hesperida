@@ -32,6 +32,8 @@ export const load: PageServerLoad = async (event) => {
 			...data.user,
 			id: userRouteId
 		},
-		websites
+		websites,
+		breadcrumbEntityLabel: data.user.name?.trim() || data.user.email?.trim() || `User ${userRouteId}`,
+		breadcrumbEntityHref: `/users/${userRouteId}`
 	};
 };

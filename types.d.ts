@@ -63,6 +63,26 @@ export interface Queue {
     created_at?: DateTime;
 }
 
+export interface Probe {
+    id?: RecordId<'probe_results'>;
+    job: RecordId<'jobs'>;
+    cdn: {
+        name: string;
+        type: string;
+    } | null;
+    favicon: string | null;
+    ipv4?: string[];
+    ipv6?: string[];
+    response_time: string;
+    secure: boolean;
+    server: string;
+    tech?: string[];
+    title: string;
+    wp_plugins?: string[];
+    wp_themes?: string[];
+    created_at?: DateTime;
+}
+
 export interface SSL {
     id?: RecordId<'ssl_results'>;
     job: RecordId<'jobs'>;
@@ -81,6 +101,15 @@ export interface SSL {
         country: string;
     }
     created_at?: DateTime;
+}
+
+type DomainRecords = {
+    [type: string] : {
+        [name: string] : string[] | {
+            exchange: string;
+            priority: number;
+        }[];
+    };
 }
 
 export interface Domain {
@@ -105,12 +134,24 @@ export interface Domain {
   dnssecEnabled: boolean;
   privacyEnabled: boolean;
   nameservers: string[];
-  records?: object;
+  records?: DomainRecords;
   created_at?: DateTime;
 }
 
-export interface Security {
-    id?: RecordId<'security_results'>;
+export interface Whois {
+    id?: RecordId<'whois_results'>;
+    job: RecordId<'jobs'>;
+    as: number;
+    country: string;
+    date: DateTime;
+    ip: string;
+    name: string;
+    network: string;
+    registry: string;
+    created_at?: DateTime;
+}
+
+export interface CommonResults {
     job: RecordId<'jobs'>;
     score: number;
     passes: number;
@@ -120,15 +161,22 @@ export interface Security {
     created_at?: DateTime;
 }
 
-export interface Stress {
+export interface Security extends CommonResults {
+    id?: RecordId<'security_results'>;
+}
+
+export interface Stress extends CommonResults {
     id?: RecordId<'stress_results'>;
-    job: RecordId<'jobs'>;
-    score: number;
-    passes: number;
-    warnings: number;
-    errors: number;
-    raw: object;
-    created_at?: DateTime;
+}
+
+export interface SEO extends CommonResults {
+    id?: RecordId<'seo_results'>;
+}
+
+export interface WCAG extends CommonResults {
+    id?: RecordId<'wcag_results'>;
+    device: string;
+    screenshot?: string;
 }
 
 export type ApiEnvelope =

@@ -5,6 +5,7 @@
 	import * as Item from '$lib/components/ui/item/index.js';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { formatDate } from '$lib/utils';
 
 	let { data, form } = $props();
 </script>
@@ -18,8 +19,9 @@
 				<Button href={data.website.url} target="_blank" size="sm">Open Website</Button>
 			</div>
 			<p><strong>Description:</strong> {data.website.description ?? '-'}</p>
+			<p><strong>Added at:</strong> {formatDate(data.website.created_at, true)}</p>
 			<p><strong>Verification code:</strong> {data.website.verification_code ?? '-'}</p>
-			<p><strong>Verified at:</strong> {data.website.verified_at ?? 'Not verified'}</p>
+			<p><strong>Verified at:</strong> {data.website.verified_at ? formatDate(data.website.verified_at, true) : 'Not verified'}</p>
 		</div>
 
 		<div class="rounded-md border p-4 space-y-3">
@@ -83,7 +85,7 @@
 		</div>
 
 		<div class="rounded-md border p-4 space-y-2">
-			<Label for="email-invite" class="text-lg font-semibold">Invite User</Label>
+			<Label for="email-invite" class="text-lg font-semibold">Invite Member</Label>
 			<form method="POST" action="?/invite" class="flex w-full max-w-sm items-center gap-2">
 				<Input type="email" id="email-invite" placeholder="user@example.com" />
 				<Button type="submit" variant="outline">Invite</Button>
@@ -94,11 +96,8 @@
 		</div>
 	</div>
 
-
-	<a href="/websites">
-		<Button variant="outline">
-			<ArrowLeftIcon class="size-4" />
-			Back to list
-		</Button>
-	</a>
+	<Button href="/websites" variant="outline">
+		<ArrowLeftIcon class="size-4" />
+		Back to list
+	</Button>
 </div>

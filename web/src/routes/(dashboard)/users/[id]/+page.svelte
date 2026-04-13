@@ -21,8 +21,8 @@
 	<div class="rounded-md border p-4 space-y-2 text-sm">
 		<p><strong>Name:</strong> {data.user.name}</p>
 		<p><strong>Email:</strong> {data.user.email}</p>
-		<p><strong>Role:</strong> {data.user.role ?? '-'}</p>
-		<p><strong>Created:</strong> {formatDate(data.user.created_at)}</p>
+		<p class="capitalize"><strong>Role:</strong> {data.user.role ?? '-'}</p>
+		<p><strong>Created:</strong> {formatDate(data.user.created_at, true)}</p>
 	</div>
 
 	<div class="flex items-center gap-3">

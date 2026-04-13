@@ -9,8 +9,9 @@ export const load: PageServerLoad = async (event) => {
 		event,
 		`/api/v1/websites/${event.params.id}`
 	);
+	const websiteRouteId = toRouteId(data.website.id);
 	return {
-		website: { ...data.website, id: toRouteId(data.website.id) },
+		website: { ...data.website, id: websiteRouteId },
 		ownerUser: data.owner_user
 			? { ...data.owner_user, id: toRouteId(data.owner_user.id) }
 			: null,
@@ -18,7 +19,9 @@ export const load: PageServerLoad = async (event) => {
 			...member,
 			id: toRouteId(member.id)
 		})),
-		currentUserRole: event.locals.user?.role ?? null
+		currentUserRole: event.locals.user?.role ?? null,
+		breadcrumbEntityLabel: data.website.url?.trim() || `Website ${websiteRouteId}`,
+		breadcrumbEntityHref: `/websites/${websiteRouteId}`
 	};
 };
 

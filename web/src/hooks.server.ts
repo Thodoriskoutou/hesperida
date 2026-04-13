@@ -4,13 +4,31 @@ import { getAuthToken, getCurrentUser } from '$lib/server/auth';
 import { checkAuthRateLimit } from '$lib/server/rate-limit';
 
 const isAuthRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/auth/');
+const isScreenshotRoute = (pathname: string): boolean => pathname.startsWith('/api/v1/screenshots/');
 const isApiRoute = (pathname: string): boolean => pathname.startsWith('/api/v1');
 const isAuthPageRoute = (pathname: string): boolean => pathname.startsWith('/auth');
+const isPublicPdfReportRoute = (pathname: string): boolean =>
+	/^\/jobs\/[^/]+\/pdf\/?$/.test(pathname);
 const isStaticAssetRoute = (pathname: string): boolean =>
 	pathname.startsWith('/_app/') || pathname === '/favicon.ico' || pathname === '/robots.txt';
 const isPublicDashboardRoute = (pathname: string): boolean =>
-	isAuthPageRoute(pathname) || pathname === '/health' || isStaticAssetRoute(pathname);
+	isAuthPageRoute(pathname) ||
+	pathname === '/health' ||
+	isStaticAssetRoute(pathname) ||
+	isPublicPdfReportRoute(pathname);
 let configValidated = false;
+
+const getJwtExpMs = (token: string): number | null => {
+	try {
+		const parts = token.split('.');
+		if (parts.length < 2 || !parts[1]) return null;
+		const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as { exp?: unknown };
+		if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) return null;
+		return payload.exp * 1000;
+	} catch {
+		return null;
+	}
+};
 
 const jsonError = (requestId: string, status: number, code: string, message: string): Response => {
 	return Response.json(
@@ -49,7 +67,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return new Response('Not Found', { status: 404 });
 	}
 
-	if (isApiRoute(pathname) && !isAuthRoute(pathname)) {
+	if (isApiRoute(pathname) && !isAuthRoute(pathname) && !isScreenshotRoute(pathname)) {
 		const key = event.request.headers.get('x-api-key')?.trim() ?? '';
 		if (!key || key !== config.webApiKey) {
 			return jsonError(event.locals.requestId, 401, 'unauthorized', 'Missing or invalid x-api-key header.');
@@ -74,10 +92,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		const user = await getCurrentUser(event.locals.authToken);
 		if (!user) {
+			if (config.debug) {
+				console.warn(`[web-api] ${event.locals.requestId} session validation failed; redirecting to signin`);
+			}
 			event.cookies.delete(config.sessionCookieName, { path: '/' });
 			throw redirect(303, '/auth/signin');
+		} else {
+			event.locals.user = user;
 		}
-		event.locals.user = user;
 	}
 
 	const response = await resolve(event);

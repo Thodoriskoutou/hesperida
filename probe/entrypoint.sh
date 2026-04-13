@@ -37,7 +37,7 @@ else
         cdn=$(echo "$httpx_output" | jq -r '{name: .cdn_name, type: .cdn_type}')
     fi
     domain=$(echo "$URL" | awk -F/ '{print $3}')
-    favicon=$(curl -s "https://www.google.com/s2/favicons?domain=$domain&sz=64" | base64 -w 0)
+    favicon=$(curl -Ls "https://www.google.com/s2/favicons?domain=$domain&sz=64" | base64 -w 0)
 
     query="INSERT INTO probe_results {
         job: $JOB_ID,

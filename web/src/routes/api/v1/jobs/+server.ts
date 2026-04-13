@@ -34,7 +34,9 @@ export const GET: RequestHandler = async (event) => {
 				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
 				return jsonOk(event, { jobs: rows ?? [] });
 			}
-			const rows = await withUserDb(auth.token, (db) => queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;'));
+			const rows = await withUserDb(auth.token, (db) =>
+				queryMany(db, 'SELECT * FROM jobs ORDER BY created_at DESC;')
+			);
 			return jsonOk(event, { jobs: rows ?? [] });
 		}
 

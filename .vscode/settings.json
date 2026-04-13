@@ -1,0 +1,24 @@
+{
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "azerothcore",
+            "username": "root",
+            "password": "password",
+            "database": "acore_auth"
+        },
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "wappalyzer",
+            "database": "${workspaceFolder:hesperida}/data/wappalyzer/db.sqlite"
+        }
+    ]
+}

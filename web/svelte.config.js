@@ -11,7 +11,7 @@ const config = {
 			const isExternalLibrary = pathSegments.includes('node_modules');
 
 			return isExternalLibrary ? undefined : true;
-		}
+		},
 	},
 	kit: {
 		adapter: adapter()

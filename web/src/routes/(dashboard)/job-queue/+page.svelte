@@ -1,31 +1,100 @@
 <script lang="ts">
+	import { source } from "sveltekit-sse";
+	import { onDestroy, onMount } from "svelte";
 	import { goto } from '$app/navigation';
 	import EllipsisVerticalIcon from '@lucide/svelte/icons/ellipsis-vertical';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import type { QueueTaskRow, QueueTaskStreamEvent } from '$lib/queue-tasks';
 	import { setFilterParam } from '$lib/filter';
   import { formatDate } from '$lib/utils.js';
 
 	let { data, form } = $props();
-	let typeFilter = $derived<string>(data.initialFilter ?? 'all');
+	type QueueStatus = 'all' | 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
+	let statusFilter = $derived<QueueStatus>((data.initialFilter ?? 'all') as QueueStatus);
+	let tasks = $state<QueueTaskRow[]>([]);
+	let seededFromLoad = $state(false);
 
-	const typeFilters = $derived.by(() => {
-		const values = new Set<string>(['all']);
-		for (const task of data.tasks ?? []) {
-			if (typeof task.type === 'string' && task.type) values.add(task.type);
-		}
-		return Array.from(values);
+	$effect(() => {
+		if (seededFromLoad) return;
+		tasks = (data.tasks ?? []).map((task): QueueTaskRow => ({
+			id: String(task.id ?? ''),
+			job_id: String(task.job_id ?? ''),
+			type: String(task.type ?? ''),
+			website_url: String(task.website_url ?? '-'),
+			target: String(task.target ?? '-'),
+			status: task.status,
+			created_at: String(task.created_at ?? '')
+		}));
+		seededFromLoad = true;
+	});
+
+	const sortByCreatedAt = (rows: QueueTaskRow[]): QueueTaskRow[] =>
+		[...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+	const upsertTask = (rows: QueueTaskRow[], task: QueueTaskRow): QueueTaskRow[] => {
+		const idx = rows.findIndex((item) => item.id === task.id);
+		if (idx === -1) return sortByCreatedAt([...rows, task]);
+		const copy = [...rows];
+		copy[idx] = task;
+		return sortByCreatedAt(copy);
+	};
+
+	const removeTask = (rows: QueueTaskRow[], id: string): QueueTaskRow[] =>
+		rows.filter((task) => task.id !== id);
+
+	let connection: ReturnType<typeof source> | null = null;
+	let unsubscribe: (() => void) | null = null;
+
+	onMount(() => {
+		connection = source("/streams/job-queue");
+		const stream = connection.select("job_queue").json<QueueTaskStreamEvent>();
+		unsubscribe = stream.subscribe((event) => {
+			if (!event) return;
+			if (event.type === "snapshot") {
+				tasks = sortByCreatedAt(event.tasks);
+				return;
+			}
+			if (event.type === "upsert") {
+				tasks = upsertTask(tasks, event.task);
+				return;
+			}
+			if (event.type === "remove") {
+				tasks = removeTask(tasks, event.id);
+			}
+		});
+	});
+
+	onDestroy(() => {
+		unsubscribe?.();
+		connection?.close();
 	});
 
 	const filteredTasks = $derived.by(() => {
-		const tasks = data.tasks ?? [];
-		if (typeFilter === 'all') return tasks;
-		return tasks.filter((task: { type?: string }) => task.type === typeFilter);
+		if (statusFilter === 'all') return tasks;
+		return tasks.filter((task: { status?: string }) => task.status === statusFilter);
 	});
 
-	const selectFilter = async (filter: string) => {
-		typeFilter = filter;
+	const statusBadgeVariant = (status?: string) => {
+		switch (status) {
+			case 'completed':
+				return 'secondary';
+			case 'failed':
+			case 'canceled':
+				return 'destructive';
+			case 'processing':
+			case 'waiting':
+				return 'default';
+			case 'pending':
+			default:
+				return 'outline';
+		}
+	};
+
+	const selectFilter = async (filter: QueueStatus) => {
+		statusFilter = filter;
 		const next = setFilterParam(new URL(window.location.href), filter, 'all');
 		await goto(next, { replaceState: true, noScroll: true, keepFocus: true });
 	};
@@ -43,11 +112,15 @@
 		<p class="text-destructive text-sm">{form.cancel_error}</p>
 	{/if}
 
-	<Tabs.Root value={typeFilter}>
+	<Tabs.Root value={statusFilter}>
 		<Tabs.List>
-			{#each typeFilters as type (type)}
-				<Tabs.Trigger value={type} onclick={() => void selectFilter(type)}>{type === 'all' ? 'All' : type}</Tabs.Trigger>
-			{/each}
+			<Tabs.Trigger value="all" onclick={() => void selectFilter('all')}>All</Tabs.Trigger>
+			<Tabs.Trigger value="pending" onclick={() => void selectFilter('pending')}>Pending</Tabs.Trigger>
+			<Tabs.Trigger value="waiting" onclick={() => void selectFilter('waiting')}>Waiting</Tabs.Trigger>
+			<Tabs.Trigger value="processing" onclick={() => void selectFilter('processing')}>Processing</Tabs.Trigger>
+			<Tabs.Trigger value="completed" onclick={() => void selectFilter('completed')}>Completed</Tabs.Trigger>
+			<Tabs.Trigger value="failed" onclick={() => void selectFilter('failed')}>Failed</Tabs.Trigger>
+			<Tabs.Trigger value="canceled" onclick={() => void selectFilter('canceled')}>Canceled</Tabs.Trigger>
 		</Tabs.List>
 	</Tabs.Root>
 
@@ -55,7 +128,7 @@
 		<table class="w-full text-sm">
 			<thead class="bg-muted/50">
 				<tr>
-					<th class="text-left p-3">ID</th>
+					<th class="text-left p-3">Website URL</th>
 					<th class="text-left p-3">Type</th>
 					<th class="text-left p-3">Target</th>
 					<th class="text-left p-3">Status</th>
@@ -69,10 +142,14 @@
 				{:else}
 					{#each filteredTasks as task (task.id)}
 						<tr class="border-t">
-							<td class="p-3">{task.id}</td>
-							<td class="p-3">{task.type ?? '-'}</td>
+							<td class="p-3">{task.website_url ?? '-'}</td>
+							<td class="p-3">
+								<Badge variant="outline">{task.type ?? '-'}</Badge>
+							</td>
 							<td class="p-3">{task.target ?? '-'}</td>
-							<td class="p-3">{task.status ?? '-'}</td>
+							<td class="p-3">
+								<Badge variant={statusBadgeVariant(task.status)}>{task.status ?? '-'}</Badge>
+							</td>
 							<td class="p-3">{formatDate(task.created_at, true)}</td>
 							<td class="p-3">
 								<DropdownMenu.Root>
@@ -90,6 +167,13 @@
 												<a href={`/job-queue/${task.id}`} {...props}>View</a>
 											{/snippet}
 										</DropdownMenu.Item>
+										{#if task.job_id}
+											<DropdownMenu.Item>
+												{#snippet child({ props })}
+													<a href={`/jobs/${task.job_id}`} {...props}>View Job</a>
+												{/snippet}
+											</DropdownMenu.Item>
+										{/if}
 										{#if task.status === 'waiting'}
 											<DropdownMenu.Separator />
 											<DropdownMenu.Item variant="destructive">

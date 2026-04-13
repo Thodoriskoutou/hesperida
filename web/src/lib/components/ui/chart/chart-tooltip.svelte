@@ -115,7 +115,7 @@
 			{@render TooltipLabel()}
 		{/if}
 		<div class="grid gap-1.5">
-			{#each visibleSeries as item, i (item.key + i)}
+			{#each visibleSeries as item, i (i)}
 				{@const key = `${nameKey || item.key || item.label || "value"}`}
 				{@const itemConfig = getPayloadConfigFromPayload(
 					chart.config,

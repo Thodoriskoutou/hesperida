@@ -64,27 +64,30 @@ const startOfDayUtc = (date: Date): string => {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const emptyDashboardData = {
+		tasks: [],
+		latestWebsites: [],
+		throughput: [],
+		toolUsage: [],
+		unverifiedCount: 0,
+		queueHealth: { waiting: 0, processing: 0, failed: 0 },
+		seo: { best: null, worst: null },
+		wcag: { best: null, worst: null },
+		security: { best: null, worst: null },
+		probe: { best: null, worst: null }
+	};
+
 	if (!locals.authToken) {
-		return {
-			tasks: [],
-			latestWebsites: [],
-			throughput: [],
-			toolUsage: [],
-			unverifiedCount: 0,
-			queueHealth: { waiting: 0, processing: 0, failed: 0 },
-			seo: { best: null, worst: null },
-			wcag: { best: null, worst: null },
-			security: { best: null, worst: null },
-			latency: { best: null, worst: null }
-		};
+		return emptyDashboardData;
 	}
 
-	return withUserDb(locals.authToken, async (db) => {
-		const taskRows = await queryMany<Queue>(
-			db,
-			'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
-			{ limit: DEFAULT_TASK_LIMIT }
-		);
+	try {
+		return await withUserDb(locals.authToken, async (db) => {
+			const taskRows = await queryMany<Queue>(
+				db,
+				'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
+				{ limit: DEFAULT_TASK_LIMIT }
+			);
 
 		const websites = await queryMany<Website>(
 			db,
@@ -184,16 +187,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const total = Number(websiteTotals?.total ?? 0);
 		const unverifiedCount = Math.max(0, total - verified);
 
-		return {
-			tasks: taskRows.map(mapQueueTaskRow),
-			latestWebsites,
-			throughput,
-			toolUsage,
-			unverifiedCount,
-			seo,
-			wcag,
-			security,
-			probe
-		};
-	});
+			return {
+				tasks: taskRows.map(mapQueueTaskRow),
+				latestWebsites,
+				throughput,
+				toolUsage,
+				unverifiedCount,
+				seo,
+				wcag,
+				security,
+				probe
+			};
+		});
+	} catch {
+		return emptyDashboardData;
+	}
 };

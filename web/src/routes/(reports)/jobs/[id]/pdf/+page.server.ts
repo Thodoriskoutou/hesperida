@@ -1,0 +1,449 @@
+import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
+import { queryOne, withAdminDb } from '$lib/server/db';
+import { normalizeToolRows, type NormalizedReportRow } from '$lib/server/report-normalization';
+import { RecordId } from 'surrealdb';
+import { toRouteId } from '$lib/server/record-id';
+import { techSearch, type Technology } from '$lib/server/wappalyzer';
+import { env } from '$env/dynamic/private';
+import packageJson from '../../../../../../package.json';
+
+type ScoreCard = {
+	tool: string;
+	score: number;
+	passes: number;
+	warnings: number;
+	errors: number;
+};
+
+type PainPoint = {
+	title: string;
+	detail: string;
+	severity: 'high' | 'medium' | 'low';
+	priority: number;
+};
+
+type WcagDeviceSection = {
+	device: string;
+	score: number;
+	passes: number;
+	warnings: number;
+	errors: number;
+	rows: NormalizedReportRow[];
+	screenshot_data_url: string | null;
+};
+
+type GeoSummary = {
+	lat: number | null;
+	lon: number | null;
+	countryName: string | null;
+	countryCode: string | null;
+	zip: string | null;
+	city: string | null;
+};
+
+const packageMeta = packageJson as {
+	version?: string;
+	repository?: string | { url?: string };
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
+
+const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+
+const asString = (value: unknown, fallback = ''): string => {
+	if (typeof value === 'string') return value;
+	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+	return fallback;
+};
+
+const asNumber = (value: unknown, fallback = 0): number => {
+	if (typeof value === 'number' && Number.isFinite(value)) return value;
+	if (typeof value === 'string') {
+		const parsed = Number.parseFloat(value);
+		if (Number.isFinite(parsed)) return parsed;
+	}
+	return fallback;
+};
+
+const toIso = (value: unknown): string => {
+	if (!value) return '';
+	if (typeof value === 'string') return value;
+	return String(value);
+};
+
+const daysUntil = (value: unknown): number | null => {
+	const date = new Date(toIso(value));
+	if (Number.isNaN(date.getTime())) return null;
+	const diffMs = date.getTime() - Date.now();
+	return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+};
+
+const toTechSummary = (value: unknown): Technology[] => {
+	return asArray(value)
+		.map((item) => asString(item).trim())
+		.filter((item) => item.length > 0)
+		.map((name) => techSearch(name) ?? { name, description: null, website: null, icon: null });
+};
+
+const toRepositoryUrl = (): string => {
+	const repo = packageMeta.repository;
+	const raw = typeof repo === 'string' ? repo : repo?.url ?? '';
+	return raw.endsWith('.git') ? raw.slice(0, -4) : raw;
+};
+
+const toSecurityThreshold = (): number => {
+	const raw = Number.parseFloat(env.SECURITY_SCORE_THRESHOLD ?? '400');
+	return Number.isFinite(raw) && raw > 0 ? raw : 400;
+};
+
+const buildPainPoints = (params: {
+	securityRows: NormalizedReportRow[];
+	wcagRows: NormalizedReportRow[];
+	seoRows: NormalizedReportRow[];
+	stressRows: NormalizedReportRow[];
+}): PainPoint[] => {
+	const points: PainPoint[] = [];
+
+	for (const row of params.securityRows) {
+		if (row.status !== 'fail' && row.status !== 'warn') continue;
+		const severity = row.severity ?? 'info';
+		let priority = 30;
+		if (severity === 'critical') priority = 100;
+		else if (severity === 'high') priority = 90;
+		else if (severity === 'medium') priority = 70;
+		else if (severity === 'low') priority = 50;
+
+		points.push({
+			title: `Security: ${row.check}`,
+			detail: row.summary,
+			severity: priority >= 80 ? 'high' : priority >= 50 ? 'medium' : 'low',
+			priority
+		});
+	}
+
+	for (const row of params.wcagRows) {
+		if (row.status !== 'fail' && row.status !== 'warn') continue;
+		let priority = 45;
+		if (row.group === 'serious') priority = 80;
+		else if (row.group === 'moderate') priority = 65;
+		else if (row.group === 'unknown') priority = 50;
+
+		points.push({
+			title: `Accessibility (${row.group}): ${row.check}`,
+			detail: row.summary,
+			severity: priority >= 75 ? 'high' : priority >= 55 ? 'medium' : 'low',
+			priority
+		});
+	}
+
+	for (const row of params.seoRows) {
+		if (row.status !== 'fail' && row.status !== 'warn') continue;
+		const priority = row.status === 'fail' ? 55 : 35;
+		points.push({
+			title: `SEO: ${row.check}`,
+			detail: row.summary,
+			severity: priority >= 50 ? 'medium' : 'low',
+			priority
+		});
+	}
+
+	for (const row of params.stressRows) {
+		if (row.status !== 'fail' && row.status !== 'warn') continue;
+		const priority = row.status === 'fail' ? 75 : 45;
+		points.push({
+			title: `Performance: ${row.check}`,
+			detail: row.summary,
+			severity: priority >= 70 ? 'high' : 'medium',
+			priority
+		});
+	}
+
+	const unique = new Map<string, PainPoint>();
+	for (const point of points) {
+		const key = `${point.title}::${point.detail}`;
+		if (!unique.has(key) || (unique.get(key)?.priority ?? 0) < point.priority) {
+			unique.set(key, point);
+		}
+	}
+
+	return Array.from(unique.values())
+		.sort((a, b) => b.priority - a.priority)
+		.slice(0, 10);
+};
+
+const buildTldr = (params: {
+	websiteUrl: string;
+	scannedAt: string;
+	overallScore: number | null;
+	securityRows: NormalizedReportRow[];
+	wcagRows: NormalizedReportRow[];
+	stressRows: NormalizedReportRow[];
+	painPoints: PainPoint[];
+}): string[] => {
+	const lines: string[] = [];
+
+	if (params.overallScore !== null) {
+		const score = params.overallScore;
+		if (score >= 95) {
+			lines.push('Overall quality is excellent! Keep reading to spot any single errors though.');
+		} else if (score >= 85) {
+			lines.push('Overall quality is strong, with only limited remediation required.');
+		} else if (score >= 70) {
+			lines.push('Overall quality is good, but targeted improvements are recommended to reduce risk and improve compliance.');
+		} else if (score >= 50) {
+			lines.push('Overall quality is mixed; multiple areas require remediation before this can be considered production-grade.');
+		} else {
+			lines.push('Overall quality is weak; immediate remediation is advised for both risk and compliance issues.');
+		}
+	}
+
+	const securityIssues = params.securityRows.filter((row) => row.status === 'fail' || row.status === 'warn').length;
+	const wcagIssues = params.wcagRows.filter((row) => row.status === 'fail' || row.status === 'warn').length;
+	lines.push(`Detected ${securityIssues} security findings and ${wcagIssues} accessibility findings that should be reviewed.`);
+
+	const p95 = params.stressRows.find((row) => row.check === 'latency p95');
+	if (p95?.value) {
+		lines.push(`Observed performance baseline: ${p95.value} at p95 latency during stress testing.`);
+	}
+
+	if (params.painPoints.length > 0) {
+		lines.push(`Top immediate priority: ${params.painPoints[0]?.title}.`);
+	}
+
+	return lines.slice(0, 6);
+};
+
+export const load: PageServerLoad = async (event) => {
+	const jobRouteId = event.params.id;
+	const securityThreshold = toSecurityThreshold();
+
+	const report = await withAdminDb(async (db) => {
+		const jobId = new RecordId('jobs', jobRouteId);
+		const job = await queryOne<Record<string, unknown>>(
+			db,
+			"SELECT * FROM jobs WHERE id = $id AND status = 'completed' LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress;",
+			{ id: jobId }
+		);
+
+		if (!job) {
+			return null;
+		}
+
+		const jobPlain = JSON.parse(JSON.stringify(job)) as Record<string, unknown>;
+		const seo = asRecord(jobPlain.seo);
+		const security = asRecord(jobPlain.security);
+		const stress = asRecord(jobPlain.stress);
+		const probe = asRecord(jobPlain.probe);
+		const ssl = asRecord(jobPlain.ssl);
+		const domain = asRecord(jobPlain.domain);
+		const whois = asArray(jobPlain.whois).map((item) => asRecord(item));
+
+		const wcagByDevice: WcagDeviceSection[] = [];
+		for (const wcagItem of asArray(jobPlain.wcag)) {
+			const wcag = asRecord(wcagItem);
+			const screenshot = asString(wcag.screenshot);
+			let screenshotDataUrl: string | null = screenshot ? `/api/v1/screenshots/${toRouteId(wcag.id)}` : null;
+
+			wcagByDevice.push({
+				device: asString(wcag.device, 'Unknown device'),
+				score: asNumber(wcag.score),
+				passes: asNumber(wcag.passes),
+				warnings: asNumber(wcag.warnings),
+				errors: asNumber(wcag.errors),
+				rows: normalizeToolRows('wcag', wcag.raw, { includeWcagPasses: false }),
+				screenshot_data_url: screenshotDataUrl
+			});
+		}
+
+		const seoRows = normalizeToolRows('seo', seo.raw);
+		const securityRows = normalizeToolRows('security', security.raw);
+		const stressRows = normalizeToolRows('stress', stress.raw);
+		const allWcagRows = wcagByDevice.flatMap((item) => item.rows);
+
+		const wcagAverageScore =
+			wcagByDevice.length > 0
+				? wcagByDevice.reduce((acc, item) => acc + item.score, 0) / wcagByDevice.length
+				: null;
+
+		const scoreCards: ScoreCard[] = [];
+		if (Object.keys(seo).length) {
+			scoreCards.push({
+				tool: 'SEO',
+				score: asNumber(seo.score),
+				passes: asNumber(seo.passes),
+				warnings: asNumber(seo.warnings),
+				errors: asNumber(seo.errors)
+			});
+		}
+		if (Object.keys(security).length) {
+			scoreCards.push({
+				tool: 'Security',
+				score: asNumber(security.score),
+				passes: asNumber(security.passes),
+				warnings: asNumber(security.warnings),
+				errors: asNumber(security.errors)
+			});
+		}
+		if (Object.keys(stress).length) {
+			scoreCards.push({
+				tool: 'Stress',
+				score: asNumber(stress.score),
+				passes: asNumber(stress.passes),
+				warnings: asNumber(stress.warnings),
+				errors: asNumber(stress.errors)
+			});
+		}
+		if (wcagAverageScore !== null) {
+			scoreCards.push({
+				tool: 'WCAG (avg)',
+				score: wcagAverageScore,
+				passes: wcagByDevice.reduce((acc, item) => acc + item.passes, 0),
+				warnings: wcagByDevice.reduce((acc, item) => acc + item.warnings, 0),
+				errors: wcagByDevice.reduce((acc, item) => acc + item.errors, 0)
+			});
+		}
+
+		const overallScore =
+			scoreCards.length > 0
+				? scoreCards.reduce((acc, card) => acc + card.score, 0) / scoreCards.length
+				: null;
+
+		const painPoints = buildPainPoints({
+			securityRows,
+			wcagRows: allWcagRows,
+			seoRows,
+			stressRows
+		});
+
+		const website = asRecord(jobPlain.website);
+		const basicInfo = {
+			job_id: toRouteId(jobPlain.id),
+			website_url: asString(website.url),
+			title: asString(probe.title),
+			scanned_at: toIso(jobPlain.created_at),
+			status: asString(jobPlain.status),
+			tools: asArray(jobPlain.types).map((item) => asString(item)).filter(Boolean)
+		};
+
+		const tldr = buildTldr({
+			websiteUrl: basicInfo.website_url,
+			scannedAt: basicInfo.scanned_at,
+			overallScore,
+			securityRows,
+			wcagRows: allWcagRows,
+			stressRows,
+			painPoints
+		});
+
+		const sslDaysUntilExpiry = daysUntil(ssl.valid_to);
+		const domainDaysUntilExpiry = daysUntil(domain.expirationDate);
+
+		return {
+			generated_at: new Date().toISOString(),
+			basic_info: basicInfo,
+			overall_score: overallScore,
+			scores: scoreCards,
+			tldr,
+			pain_points: painPoints,
+			infrastructure: {
+				probe: {
+					title: asString(probe.title),
+					server: asString(probe.server),
+					response_time: asString(probe.response_time),
+					ip: asArray(probe.ipv4)[0] || asArray(probe.ipv6)[0] || '',
+					cdn_name: asString(asRecord(probe.cdn).name),
+					cdn_type: asString(asRecord(probe.cdn).type),
+					geo: {
+						lat: null,
+						lon: null,
+						countryName: null,
+						countryCode: null,
+						zip: null,
+						city: null
+					} as GeoSummary
+				},
+				ssl: {
+					protocol: asString(ssl.protocol),
+					valid_from: toIso(ssl.valid_from),
+					valid_to: toIso(ssl.valid_to),
+					days_until_expiry: sslDaysUntilExpiry,
+					owner: asRecord(ssl.owner),
+					issuer: asRecord(ssl.issuer)
+				},
+				whois,
+				domain: {
+					...domain,
+					days_until_expiry: domainDaysUntilExpiry
+				}
+			},
+			tables: {
+				seo: seoRows,
+				security: securityRows,
+				stress: stressRows,
+				wcag_by_device: wcagByDevice
+			},
+			tech_summary: {
+				general: toTechSummary(probe.tech),
+				wp_plugins: toTechSummary(probe.wp_plugins),
+				wp_themes: toTechSummary(probe.wp_themes)
+			},
+			footer: {
+				hostname: event.url.hostname,
+				version: packageMeta.version ?? 'unknown',
+				repository: toRepositoryUrl(),
+				security_score_threshold: securityThreshold,
+				credits: [
+					'ProjectDiscovery httpx',
+					'freeipapi',
+					'@seomator/seo-audit',
+					'rdapper',
+					'ProjectDiscovery nuclei',
+					'Wapiti',
+					'Nikto',
+					'Google Lighthouse',
+					'axe-core',
+					'tsenart/vegeta',
+					'projectdiscovery/subfinder',
+					'WHOIS and DNS resolver libraries'
+				]
+			}
+		};
+	});
+
+	if (!report) {
+		throw error(404, 'Report not found');
+	}
+
+	const ipAddress = asString(asRecord(report.infrastructure?.probe).ip).trim();
+	if (ipAddress) {
+		try {
+			const geoRes = await event.fetch(`https://free.freeipapi.com/api/json/${ipAddress}`);
+			if (geoRes.ok) {
+				const geoData = (await geoRes.json()) as Record<string, unknown>;
+				const probe = asRecord(report.infrastructure?.probe);
+				probe.geo = {
+					lat: asNumber(geoData.latitude, Number.NaN),
+					lon: asNumber(geoData.longitude, Number.NaN),
+					countryName: asString(geoData.countryName) || null,
+					countryCode: asString(geoData.countryCode) || null,
+					zip: asString(geoData.zipCode) || null,
+					city: asString(geoData.cityName) || null
+				} as GeoSummary;
+				if (typeof (probe.geo as GeoSummary).lat === 'number' && Number.isNaN((probe.geo as GeoSummary).lat)) {
+					(probe.geo as GeoSummary).lat = null;
+				}
+				if (typeof (probe.geo as GeoSummary).lon === 'number' && Number.isNaN((probe.geo as GeoSummary).lon)) {
+					(probe.geo as GeoSummary).lon = null;
+				}
+			}
+		} catch {
+			// keep geo fields nullable in report when provider is unavailable
+		}
+	}
+
+	return { report };
+};

@@ -6,3 +6,4 @@ data/*.db
 ARCHITECTURE.md
 .codex
 .waylog
+web/wappalyzer.ts

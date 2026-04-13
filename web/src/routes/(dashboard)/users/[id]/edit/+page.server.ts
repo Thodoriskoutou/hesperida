@@ -6,12 +6,16 @@ import type { User } from '$lib/types';
 
 export const load: PageServerLoad = async (event) => {
 	const data = await callDashboardApi<{ user: User }>(event, `/api/v1/users/${event.params.id}`);
+	const userRouteId = toRouteId(data.user.id);
 	return {
 		user: {
 			...data.user,
-			id: toRouteId(data.user.id)
+			id: userRouteId
 		},
-		currentUserRole: event.locals.user?.role ?? null
+		currentUserRole: event.locals.user?.role ?? null,
+		breadcrumbEntityLabel:
+			data.user.name?.trim() || data.user.email?.trim() || `User ${userRouteId}`,
+		breadcrumbEntityHref: `/users/${userRouteId}`
 	};
 };
 

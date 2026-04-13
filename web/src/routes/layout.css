@@ -57,9 +57,9 @@
 	--secondary-foreground: oklch(0.985 0 0);
 	--muted: oklch(0.274 0.006 286.033);
 	--muted-foreground: oklch(0.705 0.015 286.067);
-	--accent: oklch(0.45 0.085 224.283);
+	--accent: oklch(58.758% 0.10739 222.077);
 	--accent-foreground: oklch(0.984 0.019 200.873);
-	--destructive: oklch(0.704 0.191 22.216);
+	--destructive: oklch(64.442% 0.2259 25.63);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.552 0.016 285.938);
@@ -76,7 +76,7 @@
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.552 0.016 285.938);
-	--warning: oklch(0.41 0.11 46);
+	--warning: oklch(63.102% 0.16171 47.23);
 	--warning-foreground: oklch(0.99 0.02 95);
 }
 
@@ -137,5 +137,8 @@
 	}
 	a:not(:disabled), button:not(:disabled), input[type="button"]:not(:disabled), input[type="submit"]:not(:disabled), input[type="cancel"]:not(:disabled), label[for] {
 		@apply cursor-pointer!;
+	}
+	.shadow-none {
+		box-shadow: none!important;
 	}
 }

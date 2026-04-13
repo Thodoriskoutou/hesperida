@@ -7,8 +7,10 @@
 	import FileCodeIcon from "@lucide/svelte/icons/file-code";
 	import FileTextIcon from "@lucide/svelte/icons/file-text";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
-	import { GithubStar } from "$lib/components/ui/button/index.js";
+	import GithubStar from "$lib/components/ui/button/github-star.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
+	import { page } from "$app/state";
+	import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
 	import NavMain from "$lib/components/nav-main.svelte";
 	import NavUser from "$lib/components/nav-user.svelte";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
@@ -21,13 +23,12 @@
 
 	let darkMode = $state(mode.current === "dark");
 
-	const navMain = [
+	export const navMain = [
 		{ title: "Home", url: "/", icon: HouseIcon },
 		{ title: "Users", url: "/users", icon: UsersIcon },
 		{ title: "Websites", url: "/websites", icon: GlobeIcon },
 		{ title: "Jobs", url: "/jobs", icon: BriefcaseBusinessIcon },
-		{ title: "Tasks", url: "/job-queue", icon: ListTodoIcon },
-		{ title: "Reports", url: "/reports", icon: FileTextIcon }
+		{ title: "Job Queue", url: "/job-queue", icon: ListTodoIcon }
 	];
 
 	const navSecondary = [
@@ -51,7 +52,78 @@
 	const toggleDarkMode = () => {
 		darkMode = !darkMode;
 		toggleMode();
-	}
+	};
+
+	const staticSegmentLabels: Record<string, string> = {
+		users: "Users",
+		websites: "Websites",
+		jobs: "Jobs",
+		"job-queue": "Job Queue",
+		new: "New",
+		edit: "Edit"
+	};
+
+	const toTitleCase = (value: string): string =>
+		value
+			.replace(/[-_]+/g, " ")
+			.replace(/\s+/g, " ")
+			.trim()
+			.split(" ")
+			.filter(Boolean)
+			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+			.join(" ");
+
+	const shortenId = (value: string): string => {
+		if (value.length <= 12) return value;
+		return `${value.slice(0, 6)}...${value.slice(-4)}`;
+	};
+
+	const breadcrumbs = $derived.by(() => {
+		const pathname = page.url.pathname;
+		const pathSegments = pathname.split("/").filter(Boolean);
+		const routeSegments = (page.route.id ?? "")
+			.split("/")
+			.filter((segment) => segment.length > 0 && !segment.startsWith("("));
+
+		const entityLabel = page.data?.breadcrumbEntityLabel;
+		const entityHref = page.data?.breadcrumbEntityHref;
+		let entityApplied = false;
+		let currentPath = "";
+
+		const items = [{ label: "Home", href: "/", current: pathSegments.length === 0 }];
+
+		for (let i = 0; i < pathSegments.length; i += 1) {
+			const segment = pathSegments[i]!;
+			currentPath += `/${segment}`;
+
+			const routeSegment = routeSegments[i] ?? "";
+			const isDynamicSegment =
+				routeSegment.startsWith("[") && routeSegment.endsWith("]");
+
+			let label: string;
+			let href = currentPath;
+			if (isDynamicSegment && !entityApplied) {
+				label =
+					typeof entityLabel === "string" && entityLabel.trim().length > 0
+						? entityLabel
+						: shortenId(segment);
+				if (typeof entityHref === "string" && entityHref.trim().length > 0) {
+					href = entityHref;
+				}
+				entityApplied = true;
+			} else {
+				label = staticSegmentLabels[segment] ?? toTitleCase(segment);
+			}
+
+			items.push({
+				label,
+				href,
+				current: i === pathSegments.length - 1
+			});
+		}
+
+		return items;
+	});
 </script>
 
 <Sidebar.Provider
@@ -93,7 +165,22 @@
 			<div class="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
 				<Sidebar.Trigger class="-ms-1" />
 				<Separator orientation="vertical" class="mx-2 data-[orientation=vertical]:h-4" />
-				<h1 class="text-base font-medium">Dashboard</h1>
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						{#each breadcrumbs as crumb, index (crumb.href + crumb.label)}
+							<Breadcrumb.Item>
+								{#if crumb.current}
+									<Breadcrumb.Page>{crumb.label}</Breadcrumb.Page>
+								{:else}
+									<Breadcrumb.Link href={crumb.href}>{crumb.label}</Breadcrumb.Link>
+								{/if}
+							</Breadcrumb.Item>
+							{#if index < breadcrumbs.length - 1}
+								<Breadcrumb.Separator />
+							{/if}
+						{/each}
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
 				<div class="ms-auto flex items-center gap-2">
 					<GithubStar repo="rallisf1/hesperida" />
 				</div>
