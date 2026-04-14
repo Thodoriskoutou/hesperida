@@ -45,6 +45,26 @@
 			<p><strong>Added at:</strong> {formatDate(data.website.created_at, true)}</p>
 			<p><strong>Verification code:</strong> {data.website.verification_code ?? '-'}</p>
 			<p><strong>Verified at:</strong> {data.website.verified_at ? formatDate(data.website.verified_at, true) : 'Not verified'}</p>
+			{#if !data.website.verified_at}
+				<form
+					method="POST"
+					action="?/verify"
+					class="pt-2"
+					use:enhance={createToastEnhance({
+						success: ({ formData }) => {
+							const url = String(formData.get('url') ?? '').trim();
+							return `Website ${url || 'record'} verified successfully.`;
+						},
+						error: 'Website verification failed.'
+					})}
+				>
+					<input type="hidden" name="url" value={data.website.url} />
+					<Button type="submit" variant="outline">Verify</Button>
+				</form>
+			{/if}
+			{#if form?.verify_error}
+				<p class="text-sm text-destructive">{form.verify_error}</p>
+			{/if}
 		</div>
 
 		<div class="rounded-md border p-4 space-y-3">

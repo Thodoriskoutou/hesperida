@@ -3,7 +3,7 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isSuperuser } from '$lib/server/policy';
-import { verifyWebsiteOwnership } from '$lib/server/website-verification';
+import { isWebsiteVerificationFresh, verifyWebsiteOwnership } from '$lib/server/website-verification';
 import { config } from '$lib/server/config';
 import type { Website } from '$lib/types';
 import { RecordId } from 'surrealdb';
@@ -46,6 +46,8 @@ const getAccessibleWebsite = async (
  *     responses:
  *       200:
  *         description: Verification result
+ *       409:
+ *         description: Website is already verified and cache is still valid
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       422:
@@ -66,6 +68,13 @@ export const GET: RequestHandler = async (event) => {
 	);
 	if (!accessible) {
 		return jsonError(event, 404, 'not_found', 'Website not found.');
+	}
+	if (isWebsiteVerificationFresh(accessible.verified_at, config.websiteVerificationTtlSeconds)) {
+		return jsonError(event, 409, 'already_verified', 'Website is already verified.', {
+			website_id: websiteId,
+			verified_at: accessible.verified_at ?? null,
+			ttl_seconds: config.websiteVerificationTtlSeconds
+		});
 	}
 
 	const verification = await verifyWebsiteOwnership(accessible);

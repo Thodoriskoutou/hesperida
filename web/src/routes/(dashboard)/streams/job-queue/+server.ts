@@ -9,6 +9,11 @@ import { normalizeRecordId, toRouteId } from '$lib/server/record-id';
 import type { Queue } from '$lib/types';
 
 const DEFAULT_LIMIT = 100;
+const isAuthError = (error: unknown): boolean => {
+	const message = error instanceof Error ? error.message : String(error ?? '');
+	const normalized = message.toLowerCase();
+	return normalized.includes('session has expired') || normalized.includes('auth') || normalized.includes('not allowed');
+};
 
 const connectUserDb = async (token: string): Promise<Surreal> => {
 	const db = new Surreal();
@@ -25,7 +30,15 @@ export const POST: RequestHandler = async ({ locals }) => {
 		return new Response('Unauthorized', { status: 401 });
 	}
 
-	const db = await connectUserDb(locals.authToken);
+	let db: Surreal;
+	try {
+		db = await connectUserDb(locals.authToken);
+	} catch (error) {
+		if (isAuthError(error)) {
+			return new Response('Unauthorized', { status: 401 });
+		}
+		return new Response('Service temporarily unavailable', { status: 503 });
+	}
 	let live: Awaited<ReturnType<Surreal['live']>> | null = null;
 	let stopped = false;
 
@@ -45,56 +58,75 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 	return produce(
 		async ({ emit, lock }) => {
+			const stopWithLock = () => {
+				void stop();
+				lock.set(false);
+			};
+
 			const emitEvent = (payload: QueueTaskStreamEvent): boolean => {
 				const { error } = emit('job_queue', JSON.stringify(payload));
 				if (error) {
-					void stop();
-					lock.set(false);
+					stopWithLock();
 					return false;
 				}
 				return true;
 			};
 
-			const initialRows = await queryMany<Queue>(
-				db,
-				'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
-				{ limit: DEFAULT_LIMIT }
-			);
+			let initialRows: Queue[] = [];
+			try {
+				initialRows = await queryMany<Queue>(
+					db,
+					'SELECT * FROM job_queue ORDER BY created_at DESC LIMIT $limit FETCH job.website;',
+					{ limit: DEFAULT_LIMIT }
+				);
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 
 			if (!emitEvent({ type: 'snapshot', tasks: initialRows.map(mapQueueTaskRow) })) {
 				return stop;
 			}
 
-			live = await db.live(new Table('job_queue'));
+			try {
+				live = await db.live(new Table('job_queue'));
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 
 			live.subscribe(async ({ action, recordId }) => {
 				if (stopped) return;
+				try {
+					if (action === 'DELETE') {
+						emitEvent({
+							type: 'remove',
+							id: toRouteId(normalizeRecordId(recordId)),
+						});
+						return;
+					}
 
-				if (action === 'DELETE') {
+					const row = await queryOne<Queue>(
+						db,
+						'SELECT * FROM $id LIMIT 1 FETCH job.website;',
+						{ id: recordId }
+					);
+					if (!row) {
+						emitEvent({
+							type: 'remove',
+							id: toRouteId(recordId),
+						});
+						return;
+					}
+
 					emitEvent({
-						type: 'remove',
-						id: toRouteId(normalizeRecordId(recordId)),
+						type: 'upsert',
+						task: mapQueueTaskRow(row),
 					});
+				} catch {
+					stopWithLock();
 					return;
 				}
-
-				const row = await queryOne<Queue>(
-					db,
-					'SELECT * FROM $id LIMIT 1 FETCH job.website;',
-					{ id: recordId }
-				);
-				if (!row) {
-					emitEvent({
-						type: 'remove',
-						id: toRouteId(recordId),
-					});
-					return;
-				}
-
-				emitEvent({
-					type: 'upsert',
-					task: mapQueueTaskRow(row),
-				});
 			});
 
 			return stop;

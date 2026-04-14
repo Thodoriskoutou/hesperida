@@ -20,10 +20,11 @@ const cleanTxtValue = (value: string): string => value.replace(/^"+|"+$/g, '').r
 export const generateWebsiteVerificationCode = (): string =>
 	crypto.randomUUID().replace(/-/g, '').toLowerCase();
 
-const isWebsiteVerificationFresh = (
-	verifiedAt: DateTime,
+export const isWebsiteVerificationFresh = (
+	verifiedAt: DateTime | null | undefined,
 	ttlSeconds = config.websiteVerificationTtlSeconds
 ): boolean => {
+	if (!verifiedAt) return false;
 	const now = new DateTime();
 	const ttlDuration = new Duration(`${ttlSeconds}s`);
 	const threshold = verifiedAt.add(ttlDuration);
@@ -122,9 +123,7 @@ export const verifyWebsiteOwnership = async (website: Website, skipCache: boolea
 
 	verifyResult.txtHost = `hesperida.${registrableDomain}`.toLowerCase();
 	if(!skipCache) {
-		const cached = website.verified_at ?
-			isWebsiteVerificationFresh(website.verified_at, config.websiteVerificationTtlSeconds)
-			: false;
+		const cached = isWebsiteVerificationFresh(website.verified_at, config.websiteVerificationTtlSeconds);
 		if (cached) {
 			verifyResult.method = 'cache';
 			verifyResult.verified = true;

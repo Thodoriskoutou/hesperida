@@ -19,9 +19,11 @@
 	type QueueStatus = 'all' | 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
 	let statusFilter = $derived<QueueStatus>((data.initialFilter ?? 'all') as QueueStatus);
 	let tasks = $state<QueueTaskRow[]>([]);
+	const currentUserRole = $derived((data.currentUserRole ?? null) as 'admin' | 'editor' | 'viewer' | null);
 	let selectedWebsite = $state<Option | null>(null);
 	let selectedType = $state<Option | null>(null);
 	let seededFromLoad = $state(false);
+	const UNSTUCK_MIN_AGE_MS = 5 * 60 * 1000;
 
 	const optionValue = (option: Option | null | undefined): string => {
 		if (option == null) return '';
@@ -134,6 +136,16 @@
 		const next = setFilterParam(new URL(window.location.href), filter, 'all');
 		await goto(next, { replaceState: true, noScroll: true, keepFocus: true });
 	};
+
+	const isStalePendingTask = (task: QueueTaskRow): boolean => {
+		if (task.status !== 'pending') return false;
+		const createdAtMs = new Date(task.created_at).getTime();
+		if (!Number.isFinite(createdAtMs)) return false;
+		return Date.now() - createdAtMs >= UNSTUCK_MIN_AGE_MS;
+	};
+
+	const canUnstuckTask = (task: QueueTaskRow): boolean =>
+		(currentUserRole === 'admin' || currentUserRole === 'editor') && isStalePendingTask(task);
 </script>
 
 <div class="p-4 lg:p-6 space-y-4">
@@ -146,6 +158,9 @@
 	{/if}
 	{#if form?.cancel_error}
 		<p class="text-destructive text-sm">{form.cancel_error}</p>
+	{/if}
+	{#if form?.unstuck_error}
+		<p class="text-destructive text-sm">{form.unstuck_error}</p>
 	{/if}
 
 	<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -245,6 +260,26 @@
 												>
 													<input type="hidden" name="id" value={task.id} />
 													<button type="submit" class="w-full text-left">Cancel</button>
+												</form>
+											</DropdownMenu.Item>
+										{/if}
+										{#if canUnstuckTask(task)}
+											<DropdownMenu.Separator />
+											<DropdownMenu.Item>
+												<form
+													method="POST"
+													action="?/unstuck"
+													class="w-full"
+													use:enhance={createToastEnhance({
+														success: ({ formData }) => {
+															const id = String(formData.get('id') ?? '').trim();
+															return `Task ${id || ''} moved to waiting.`.trim();
+														},
+														error: 'Failed to unstuck task.'
+													})}
+												>
+													<input type="hidden" name="id" value={task.id} />
+													<button type="submit" class="w-full text-left">Unstuck</button>
 												</form>
 											</DropdownMenu.Item>
 										{/if}

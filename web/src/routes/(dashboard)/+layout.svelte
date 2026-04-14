@@ -5,7 +5,7 @@
 	import BriefcaseBusinessIcon from "@lucide/svelte/icons/briefcase-business";
 	import ListTodoIcon from "@lucide/svelte/icons/list-todo";
 	import FileCodeIcon from "@lucide/svelte/icons/file-code";
-	import FileTextIcon from "@lucide/svelte/icons/file-text";
+	import FileQuestionMarkIcon from "@lucide/svelte/icons/file-question-mark";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
 	import GithubStar from "$lib/components/ui/button/github-star.svelte";
 	import { Separator } from "$lib/components/ui/separator/index.js";
@@ -40,7 +40,8 @@
 	];
 
 	const navSecondary = [
-		{ title: "API", url: "/api", icon: FileCodeIcon }
+		{ title: "API", url: "/api", icon: FileCodeIcon },
+		{ title: "Docs", url: "https://rallisf1.github.io/hesperida", icon: FileQuestionMarkIcon }
 	];
 
 	const toInitials = (name: string | null | undefined, email: string | null | undefined): string => {

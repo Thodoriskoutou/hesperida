@@ -307,6 +307,13 @@ newJobs.subscribe(async ({action, value, recordId}) => {
                         FROM probe_results
                         WHERE job = $job_id;`, { job_id:  recordId }).collect();
                     const IPs = result.length ? result[0]!.ip : [];
+                    if(!IPs.length) {
+                        // No IPs to resolve; mark as empty array so job completion logic can finish.
+                        await db.update<Job>(recordId).merge({
+                            whois: []
+                        });
+                        continue;
+                    }
                     for (const IP of IPs) {
                         const task: Partial<Queue> = {
                             job: recordId as RecordId<"jobs">,

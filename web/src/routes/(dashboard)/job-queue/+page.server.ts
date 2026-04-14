@@ -10,6 +10,7 @@ type QueueTaskView = ReturnType<typeof mapQueueTaskToView>;
 
 export const load: PageServerLoad = async (event) => {
 	const rawFilter = event.url.searchParams.get('filter');
+	const currentUserRole = event.locals.user?.role ?? null;
 
 	try {
 		const data = await callDashboardApi<{ tasks: ApiQueueTask[] }>(event, '/api/v1/job-queue');
@@ -49,17 +50,35 @@ export const load: PageServerLoad = async (event) => {
 		return {
 			tasks,
 			initialFilter,
+			currentUserRole,
 			error: null
 		};
 	} catch (error) {
 		if (error instanceof DashboardApiError) {
-			return { tasks: [], initialFilter: 'all', error: error.message };
+			return { tasks: [], initialFilter: 'all', currentUserRole, error: error.message };
 		}
 		throw error;
 	}
 };
 
 export const actions: Actions = {
+	unstuck: async (event) => {
+		const formData = await event.request.formData();
+		const id = String(formData.get('id') ?? '').trim();
+		if (!id) return fail(400, { unstuck_error: 'Task id is required.' });
+
+		try {
+			await callDashboardApi(event, `/api/v1/job-queue/${id}/unstuck`, {
+				method: 'POST'
+			});
+			return { unstuck_success: true };
+		} catch (error) {
+			if (error instanceof DashboardApiError) {
+				return fail(error.status, { unstuck_error: error.message });
+			}
+			throw error;
+		}
+	},
 	cancel: async (event) => {
 		const formData = await event.request.formData();
 		const id = String(formData.get('id') ?? '').trim();

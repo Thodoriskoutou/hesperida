@@ -16,6 +16,11 @@ const connectUserDb = async (token: string): Promise<Surreal> => {
 	await db.authenticate(token);
 	return db;
 };
+const isAuthError = (error: unknown): boolean => {
+	const message = error instanceof Error ? error.message : String(error ?? '');
+	const normalized = message.toLowerCase();
+	return normalized.includes('session has expired') || normalized.includes('auth') || normalized.includes('not allowed');
+};
 
 const routeIdFrom = (value: unknown): string => toRouteId(normalizeRecordId(value));
 
@@ -81,7 +86,15 @@ export const POST: RequestHandler = async ({ locals }) => {
 		return new Response('Unauthorized', { status: 401 });
 	}
 
-	const db = await connectUserDb(locals.authToken);
+	let db: Surreal;
+	try {
+		db = await connectUserDb(locals.authToken);
+	} catch (error) {
+		if (isAuthError(error)) {
+			return new Response('Unauthorized', { status: 401 });
+		}
+		return new Response('Service temporarily unavailable', { status: 503 });
+	}
 	let jobsLive: Awaited<ReturnType<Surreal['live']>> | null = null;
 	let queueLive: Awaited<ReturnType<Surreal['live']>> | null = null;
 	let stopped = false;
@@ -114,89 +127,123 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 	return produce(
 		async ({ emit, lock }) => {
+			const stopWithLock = () => {
+				void stop();
+				lock.set(false);
+			};
+
 			const emitNotification = (payload: DashboardNotificationEvent): boolean => {
 				if (emittedEvents.has(payload.event_id)) return true;
 				emittedEvents.add(payload.event_id);
 				const { error } = emit('notifications', JSON.stringify(payload));
 				if (error) {
-					void stop();
-					lock.set(false);
+					stopWithLock();
 					return false;
 				}
 				return true;
 			};
 
-			const initialJobs = await queryMany<{ id: unknown; status: unknown }>(
-				db,
-				'SELECT id, status FROM jobs;'
-			);
+			let initialJobs: { id: unknown; status: unknown }[] = [];
+			try {
+				initialJobs = await queryMany<{ id: unknown; status: unknown }>(
+					db,
+					'SELECT id, status FROM jobs;'
+				);
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 			for (const row of initialJobs) {
 				previousJobStatuses.set(routeIdFrom(row.id), String(row.status ?? ''));
 			}
 
-			const initialTasks = await queryMany<{ id: unknown; status: unknown }>(
-				db,
-				'SELECT id, status FROM job_queue;'
-			);
+			let initialTasks: { id: unknown; status: unknown }[] = [];
+			try {
+				initialTasks = await queryMany<{ id: unknown; status: unknown }>(
+					db,
+					'SELECT id, status FROM job_queue;'
+				);
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 			for (const row of initialTasks) {
 				previousTaskStatuses.set(routeIdFrom(row.id), String(row.status ?? ''));
 			}
 
-			jobsLive = await db.live(new Table('jobs'));
+			try {
+				jobsLive = await db.live(new Table('jobs'));
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 			jobsLive.subscribe(async ({ action, recordId }) => {
 				if (stopped) return;
-				const id = routeIdFrom(recordId);
-				if (action === 'DELETE') {
-					previousJobStatuses.delete(id);
-					return;
+				try {
+					const id = routeIdFrom(recordId);
+					if (action === 'DELETE') {
+						previousJobStatuses.delete(id);
+						return;
+					}
+
+					const job = await queryOne<Job & { website?: Website }>(
+						db,
+						'SELECT * FROM $id LIMIT 1 FETCH website;',
+						{ id: recordId }
+					);
+					if (!job) {
+						previousJobStatuses.delete(id);
+						return;
+					}
+
+					const nextStatus = String(job.status ?? '');
+					const previousStatus = previousJobStatuses.get(id);
+					previousJobStatuses.set(id, nextStatus);
+					if (!previousStatus || previousStatus === nextStatus) return;
+
+					const payload = buildJobEvent(job);
+					if (!payload) return;
+					emitNotification(payload);
+				} catch {
+					stopWithLock();
 				}
-
-				const job = await queryOne<Job & { website?: Website }>(
-					db,
-					'SELECT * FROM $id LIMIT 1 FETCH website;',
-					{ id: recordId }
-				);
-				if (!job) {
-					previousJobStatuses.delete(id);
-					return;
-				}
-
-				const nextStatus = String(job.status ?? '');
-				const previousStatus = previousJobStatuses.get(id);
-				previousJobStatuses.set(id, nextStatus);
-				if (!previousStatus || previousStatus === nextStatus) return;
-
-				const payload = buildJobEvent(job);
-				if (!payload) return;
-				emitNotification(payload);
 			});
 
-			queueLive = await db.live(new Table('job_queue'));
+			try {
+				queueLive = await db.live(new Table('job_queue'));
+			} catch {
+				stopWithLock();
+				return stop;
+			}
 			queueLive.subscribe(async ({ action, recordId }) => {
 				if (stopped) return;
-				const id = routeIdFrom(recordId);
-				if (action === 'DELETE') {
-					previousTaskStatuses.delete(id);
-					return;
+				try {
+					const id = routeIdFrom(recordId);
+					if (action === 'DELETE') {
+						previousTaskStatuses.delete(id);
+						return;
+					}
+
+					const task = await queryOne<Queue & { job?: Job & { website?: Website } }>(
+						db,
+						'SELECT * FROM $id LIMIT 1 FETCH job.website;',
+						{ id: recordId }
+					);
+					if (!task) {
+						previousTaskStatuses.delete(id);
+						return;
+					}
+
+					const nextStatus = String(task.status ?? '');
+					const previousStatus = previousTaskStatuses.get(id);
+					previousTaskStatuses.set(id, nextStatus);
+					if (!previousStatus || previousStatus === nextStatus) return;
+					if (nextStatus !== 'failed') return;
+
+					emitNotification(buildTaskFailedEvent(task));
+				} catch {
+					stopWithLock();
 				}
-
-				const task = await queryOne<Queue & { job?: Job & { website?: Website } }>(
-					db,
-					'SELECT * FROM $id LIMIT 1 FETCH job.website;',
-					{ id: recordId }
-				);
-				if (!task) {
-					previousTaskStatuses.delete(id);
-					return;
-				}
-
-				const nextStatus = String(task.status ?? '');
-				const previousStatus = previousTaskStatuses.get(id);
-				previousTaskStatuses.set(id, nextStatus);
-				if (!previousStatus || previousStatus === nextStatus) return;
-				if (nextStatus !== 'failed') return;
-
-				emitNotification(buildTaskFailedEvent(task));
 			});
 
 			return stop;
@@ -204,4 +251,3 @@ export const POST: RequestHandler = async ({ locals }) => {
 		{ ping: 15000, stop }
 	);
 };
-

@@ -42,6 +42,17 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
+	verify: async (event) => {
+		try {
+			await callDashboardApi(event, `/api/v1/websites/${event.params.id}/verify`);
+			return { verify_success: true };
+		} catch (error) {
+			if (error instanceof DashboardApiError) {
+				return fail(error.status, { verify_error: error.message });
+			}
+			throw error;
+		}
+	},
 	invite: async (event) => {
 		const formData = await event.request.formData();
 		const email = String(formData.get('email') ?? '').trim();

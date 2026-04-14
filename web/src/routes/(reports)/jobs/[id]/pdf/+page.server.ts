@@ -8,6 +8,8 @@ import { techSearch, type Technology } from '$lib/server/wappalyzer';
 import { env } from '$env/dynamic/private';
 import packageJson from '../../../../../../package.json';
 import { mapProbeGeoToSummary } from '$lib/server/geo';
+import QRCode from 'qrcode';
+import { config } from '$lib/server/config';
 
 type ScoreCard = {
 	tool: string;
@@ -253,7 +255,7 @@ export const load: PageServerLoad = async (event) => {
 
 		const seoRows = normalizeToolRows('seo', seo.raw);
 		const securityRows = normalizeToolRows('security', security.raw);
-		const stressRows = normalizeToolRows('stress', stress.raw);
+		const stressRows = stress.raw ? normalizeToolRows('stress', stress.raw) : [];
 		const allWcagRows = wcagByDevice.flatMap((item) => item.rows);
 
 		const wcagAverageScore =
@@ -333,6 +335,19 @@ export const load: PageServerLoad = async (event) => {
 
 		const sslDaysUntilExpiry = daysUntil(ssl.valid_to);
 		const domainDaysUntilExpiry = daysUntil(domain.expirationDate);
+		let qr = '';
+
+		try {
+			// Generates the Base64 string directly
+			qr = await QRCode.toDataURL(event.url.toString(), {
+				errorCorrectionLevel: 'H',
+				margin: 1,
+				width: 120
+			});
+
+		} catch (err) {
+			if (config.debug) console.debug(`Could not generate QR for Job Report ${basicInfo.job_id}: ${(err as Error).message}`);
+		}
 
 		return {
 			generated_at: new Date().toISOString(),
@@ -395,7 +410,8 @@ export const load: PageServerLoad = async (event) => {
 					'projectdiscovery/subfinder',
 					'WHOIS and DNS resolver libraries'
 				]
-			}
+			},
+			qr
 		};
 	});
 

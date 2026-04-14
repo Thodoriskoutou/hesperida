@@ -36,6 +36,21 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
+	verify: async (event) => {
+		const formData = await event.request.formData();
+		const id = String(formData.get('id') ?? '').trim();
+		if (!id) return fail(400, { verify_error: 'Website id is required.' });
+
+		try {
+			await callDashboardApi(event, `/api/v1/websites/${id}/verify`);
+			return { verify_success: true };
+		} catch (error) {
+			if (error instanceof DashboardApiError) {
+				return fail(error.status, { verify_error: error.message });
+			}
+			throw error;
+		}
+	},
 	delete: async (event) => {
 		const formData = await event.request.formData();
 		const id = String(formData.get('id') ?? '').trim();

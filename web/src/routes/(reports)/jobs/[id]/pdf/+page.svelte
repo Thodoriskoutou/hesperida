@@ -71,6 +71,7 @@
 			security_score_threshold: number;
 			credits: string[];
 		};
+		qr: string;
 	};
 
 	let { data }: { data: { report: ReportPayload } } = $props();
@@ -232,26 +233,31 @@
 	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
-<main class="report">
-	<header class="section cover">
-		<div class="cover-top">
-			<div class="brand-row">
-				<div class="brand-mark">H</div>
+<table class="report border-separate" cellspacing="16px">
+	<thead class="section cover">
+		<tr class="cover-top mb-2">
+			<td class="brand-row">
+				<div class="brand-mark self-start mt-1">H</div>
 				<div>
 					<p class="brand-name">Hesperida</p>
 					<p class="brand-subtitle">Web Quality & Security Assessment</p>
+					<h1>Website Audit Report</h1>
+					<p class="muted">Generated: {formatDate(report.generated_at)}</p>
 				</div>
-			</div>
-			<div class="overall-header">
+			</td>
+			<td class="qr">
+				{#if report.qr.length}
+				<img src={report.qr} alt="qr_code" />
+				{/if}
+			</td>
+			<td class="overall-header">
 				<p class="label">Overall Score</p>
 				<p class={`score-value ${scoreBandClass(report.overall_score)}`}>{formatScore(report.overall_score)}</p>
-			</div>
-		</div>
-		<h1>Website Audit Report</h1>
-		<p class="muted">Generated: {formatDate(report.generated_at)}</p>
-	</header>
-
-	<section class="section">
+			</td>
+		</tr>
+	</thead>
+	<tbody>
+	<tr class="section"><td>
 		<h2>Basic Information</h2>
 		<div class="info-grid">
 			<div><span class="label">Website</span><span>{report.basic_info.website_url || 'N/A'}</span></div>
@@ -273,9 +279,9 @@
 				</span>
 			</div>
 		</div>
-	</section>
+	</td></tr>
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>Score Summary</h2>
 		<div class="score-grid">
 			{#each report.scores as score (score.tool)}
@@ -289,18 +295,18 @@
 				</div>
 			{/each}
 		</div>
-	</section>
+	</td></tr>
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>TL;DR</h2>
 		<ul class="list tldr-list">
 			{#each report.tldr as line, index (`${index}-${line}`)}
 				<li>{line}</li>
 			{/each}
 		</ul>
-	</section>
+	</td></tr>
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>Top Pain Points</h2>
 		{#if report.pain_points.length === 0}
 			<p class="muted">No high-priority pain points were detected.</p>
@@ -318,15 +324,15 @@
 						<Table.Row>
 							<Table.Cell><span class={`badge ${severityClass(point.severity)}`}>{point.severity}</span></Table.Cell>
 							<Table.Cell>{point.title}</Table.Cell>
-							<Table.Cell class="whitespace-break-spaces break">{point.detail}</Table.Cell>
+							<Table.Cell class="whitespace-break-spaces break-all">{point.detail}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
 		{/if}
-	</section>
+	</td></tr>
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>Infrastructure Summary</h2>
 		<div class="infra-grid">
 			<article class="infra-card">
@@ -387,10 +393,10 @@
 				</ul>
 			</article>
 		</div>
-	</section>
+	</td></tr>
 
 	{#if techColumns.length > 0}
-		<section class="section">
+		<tr class="section"><td>
 			<h2>Tech Summary</h2>
 			<div class="tech-grid">
 				{#each techColumns as column (`tech-col-${column.key}`)}
@@ -410,10 +416,10 @@
 					</article>
 				{/each}
 			</div>
-		</section>
+		</td></tr>
 	{/if}
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>Whois Records</h2>
 		{#if report.infrastructure.whois.length === 0}
 			<p class="muted">No whois records were collected.</p>
@@ -441,9 +447,9 @@
 				</Table.Body>
 			</Table.Root>
 		{/if}
-	</section>
+	</td></tr>
 
-	<section class="section">
+	<tr class="section"><td>
 		<h2>DNS Records</h2>
 		{#if dnsRows.length === 0}
 			<p class="muted">No DNS records were collected.</p>
@@ -461,16 +467,16 @@
 						<Table.Row>
 							<Table.Cell>{row.type}</Table.Cell>
 							<Table.Cell class="mono">{row.name}</Table.Cell>
-							<Table.Cell class="mono whitespace-break-spaces break">{row.value}</Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break-all">{row.value}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>
 			</Table.Root>
 		{/if}
-	</section>
+	</td></tr>
 
 	{#if report.tables.wcag_by_device.length > 0}
-		<section class="section page-break">
+		<tr class="section page-break"><td>
 			<h2>WCAG Evidence by Device</h2>
 			{#each report.tables.wcag_by_device as wcag (`wcag-${wcag.device}`)}
 				<article class="device-section">
@@ -500,7 +506,7 @@
 									<Table.Cell>{row.group}</Table.Cell>
 									<Table.Cell>{row.check}</Table.Cell>
 									<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-									<Table.Cell class="mono whitespace-break-spaces break">
+									<Table.Cell class="mono whitespace-break-spaces break-all">
 										<div>{row.summary}</div>
 										{#if toDetailLines(row.details).length}
 											<ul class="details">
@@ -516,11 +522,11 @@
 					</Table.Root>
 				</article>
 			{/each}
-		</section>
+		</td></tr>
 	{/if}
 
 	{#if report.tables.security.length > 0}
-		<section class="section page-break">
+		<tr class="section page-break"><td>
 			<h2>Security Findings</h2>
 			<Table.Root class="overflow-x-clip">
 				<Table.Header>
@@ -539,7 +545,7 @@
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
 							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell class="mono whitespace-break-spaces break">
+							<Table.Cell class="mono whitespace-break-spaces break-all">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -553,11 +559,11 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
-		</section>
+		</td></tr>
 	{/if}
 
 	{#if report.tables.seo.length > 0}
-		<section class="section page-break">
+		<tr class="section page-break"><td>
 			<h2>SEO Findings</h2>
 			<Table.Root class="overflow-x-clip">
 				<Table.Header>
@@ -575,8 +581,8 @@
 							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
-							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell class="mono whitespace-break-spaces break">
+							<Table.Cell class="mono whitespace-break-spaces break-word">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break-all">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -590,11 +596,11 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
-		</section>
+		</td></tr>
 	{/if}
 
 	{#if report.tables.stress.length > 0}
-		<section class="section page-break">
+		<tr class="section page-break"><td>
 			<h2>Performance (Stress) Findings</h2>
 			<Table.Root class="overflow-x-clip">
 				<Table.Header>
@@ -613,7 +619,7 @@
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
 							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
-							<Table.Cell class="mono whitespace-break-spaces break">
+							<Table.Cell class="mono whitespace-break-spaces break-all">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}
 									<ul class="details">
@@ -627,17 +633,22 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
-		</section>
+		</td></tr>
 	{/if}
-
-	<footer class="report-footer fine-print">
-		<p><strong>Hesperida Host:</strong> {report.footer.hostname}</p>
-		<p><strong>Hesperida Version:</strong> {report.footer.version}</p>
-		<p><strong>Hesperida Repository:</strong> {report.footer.repository || 'N/A'}</p>
-		<p><strong>Security Score Threshold:</strong> {report.footer.security_score_threshold}</p>
-		<p><strong>Credits:</strong> {report.footer.credits.join(', ')}</p>
-	</footer>
-</main>
+	</tbody>
+	<tfoot class="report-footer fine-print">
+		<tr>
+			<td>
+				<div class="flex justify-between">
+					<p><strong>Hesperida Host:</strong> {report.footer.hostname}</p>
+					<p><strong>Hesperida Version:</strong> {report.footer.version}</p>
+					<p><strong>Hesperida Repo:</strong> {report.footer.repository || 'N/A'}</p>
+					<p><strong>Security Score Threshold:</strong> {report.footer.security_score_threshold}</p>
+				</div>
+			</td>
+		</tr>
+	</tfoot>
+</table>
 
 <style>
 	:global(body) {
@@ -662,9 +673,21 @@
 	.section {
 		border: 1px solid #e5e7eb;
 		border-radius: 10px;
-		padding: 16px;
 		margin-bottom: 16px;
 		break-inside: avoid;
+	}
+
+
+	.section.cover > tr {
+		padding: 16px;
+		border: 1px solid #e5e7eb;
+    	border-radius: 8px;
+	}
+
+	.section > td {
+		padding: 16px;
+		border: 1px solid #e5e7eb;
+    	border-radius: 8px;
 	}
 
 	.cover {
@@ -890,21 +913,21 @@
 		margin: 0;
 	}
 
-	:global(.report table) {
+	:global(.report table[data-slot="table"]) {
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.84rem;
 	}
 
-	:global(.report th),
-	:global(.report td) {
+	:global(.report table[data-slot="table"] th),
+	:global(.report table[data-slot="table"] td) {
 		border: 1px solid #e5e7eb;
 		padding: 6px 8px;
 		text-align: left;
 		vertical-align: top;
 	}
 
-	:global(.report thead th) {
+	:global(.report table[data-slot="table"] thead th) {
 		background: #f9fafb;
 	}
 
@@ -956,10 +979,6 @@
 	.mono {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 		font-size: 0.78rem;
-	}
-
-	.break {
-		word-break: break-all;
 	}
 
 	.details {

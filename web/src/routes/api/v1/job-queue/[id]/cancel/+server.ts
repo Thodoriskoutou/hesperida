@@ -46,9 +46,11 @@ export const POST: RequestHandler = async (event) => {
 		return jsonError(event, 409, 'conflict', 'Only waiting tasks can be canceled.', { status: task.status });
 	}
 
-	const updated = await (isSuperuser(auth.user)
-		? withAdminDb((db) => queryOne(db, 'UPDATE $id SET status = "canceled";', { id: taskId }))
-		: withUserDb(auth.token, (db) => queryOne(db, 'UPDATE $id SET status = "canceled";', { id: taskId })));
+	// job_queue update is restricted at schema level; perform write through admin db
+	// only after user-scoped access check above.
+	const updated = await withAdminDb((db) =>
+		queryOne(db, 'UPDATE $id SET status = "canceled";', { id: taskId })
+	);
 	if (!updated) return jsonError(event, 409, 'conflict', 'Task is no longer waiting.');
 	return jsonOk(event, { task: updated });
 };

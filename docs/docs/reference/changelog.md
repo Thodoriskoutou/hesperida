@@ -1,16 +1,18 @@
+---
+title: Changelog
+sidebar_position: 5
+---
 
-# Change Log
-All notable changes to this project will be documented in this file.
- 
-The format is based on [Keep a Changelog](http://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](http://semver.org/).
+# Changelog
+
+This page mirrors the project root `CHANGELOG.md`.
 
 ## [0.5.1] - 2026-04-14
 
 ### Added
 
 - Verify functionality in the dashboard
-- Unstuck pending Job Queue Tasks (need to be stuck over 5 minutes)
+- Unstuck pending Job Queue Tasks action (need to be stuck over 5 minutes)
 - Docusaurus based documentation
 
 ### Changed
@@ -115,9 +117,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+- No documented changes in this section.
 
 ## [0.2.0] - 2026-04-01
-  
+
 ### Added
 
 - Security scan tool
@@ -136,10 +139,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Limit the WCAG score number to 2 decimals
 
 ## [0.1.1] - 2026-03-20
-  
-1. fail on curl error response
-2. entry work on security tool
- 
+
 ### Added
 
 #### Tools
@@ -147,15 +147,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Security scanner (nuclei + nikto + wapiti) - WIP
 
 ### Changed
- 
+
+- Initial security-tool integration work started.
+
 ### Fixed
 
 - `probe`, `seo`, and `whois` tools don't fail when there's a database error.
 
 ## [0.1.0] - 2026-03-20
-  
-Initial Commit
- 
+
 ### Added
 
 #### Tools
@@ -171,7 +171,3 @@ Initial Commit
 
 - Orchestrator (dockerode)
 - Database & Schema (SurrealDB)
-
-### Changed
- 
-### Fixed

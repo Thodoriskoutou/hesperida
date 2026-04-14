@@ -72,6 +72,9 @@
 	{#if form?.delete_error}
 		<p class="text-destructive text-sm">{form.delete_error}</p>
 	{/if}
+	{#if form?.verify_error}
+		<p class="text-destructive text-sm">{form.verify_error}</p>
+	{/if}
 
 	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 		<Tabs.Root value={verificationFilter}>
@@ -129,6 +132,26 @@
 												<a href={`/jobs/new?website_id=${website.id}`} {...props}>Add Job</a>
 											{/snippet}
 										</DropdownMenu.Item>
+										{#if !website.verified_at}
+											<DropdownMenu.Item>
+												<form
+													method="POST"
+													action="?/verify"
+													class="w-full"
+													use:enhance={createToastEnhance({
+														success: ({ formData }) => {
+															const url = String(formData.get('url') ?? '').trim();
+															return `Website ${url || 'record'} verified successfully.`;
+														},
+														error: 'Website verification failed.'
+													})}
+												>
+													<input type="hidden" name="id" value={website.id} />
+													<input type="hidden" name="url" value={website.url} />
+													<button type="submit" class="w-full text-left">Verify</button>
+												</form>
+											</DropdownMenu.Item>
+										{/if}
 										<DropdownMenu.Separator />
 										<DropdownMenu.Item variant="destructive">
 											<button
