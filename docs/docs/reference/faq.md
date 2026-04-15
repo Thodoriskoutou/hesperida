@@ -64,6 +64,8 @@ Only websites you can verify. Verification methods:
 1. DNS TXT: `hesperida.yourdomain.com = <verification_code>`
 2. Web root file: `hesperida-<verification_code>.txt` returning HTTP 200
 
+Verification is stored in shared records per `(group, registrable_domain)`, so same-group websites on the same registrable domain reuse the same verification code.
+
 Use dashboard verification or `GET /api/v1/websites/{id}/verify`.
 
 ## Can I use Hesperida in CI/CD?

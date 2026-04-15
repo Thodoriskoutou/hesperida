@@ -15,6 +15,14 @@ Use profile `aio` for single-host deployments.
 docker compose --profile aio up -d
 ```
 
+### Development Runtime
+
+Use profile `dev` for local backend development (`db` + `db-init` + `orchestrator`).
+
+```bash
+docker compose --profile dev up -d
+```
+
 ### Split DB / Backend
 
 Use `database` and `backend` profiles when SurrealDB is hosted separately.

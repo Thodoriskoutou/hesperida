@@ -30,13 +30,15 @@ This documentation is the canonical entry point for architecture, deployment, AP
 
 ## Current Scope
 
-The docs currently target the `v0.5.x` feature set:
+The docs currently target the `v0.6.x` feature set:
 
 - Dashboard CRUD and live updates
 - Multi-tenant ACL (`role`, `group`, `is_superuser`)
 - Website ownership transfer and membership control
-- Mandatory website verification gate for job creation
+- Group-scoped shared website verification records with method tracking (`dns|file`)
+- Mandatory website verification gate for job creation (no verification expiry)
 - SSR HTML reports + Gotenberg PDF conversion
+- TypeScript SEO scanner implementation
 
 {/* TODO:Add release-branch documentation policy once versioning workflow is formalized. */}
 

@@ -38,8 +38,12 @@ sidebar_position: 2
 
 ## Verification Fields
 
-- `websites.verification_code`
-- `websites.verified_at`
+- `websites.verification_id`
+- `website_verifications.group`
+- `website_verifications.registrable_domain`
+- `website_verifications.verification_code`
+- `website_verifications.verified_at`
+- `website_verifications.verification_method`
 
 ## Important Events
 

@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
-import { adminOne, createUser, ensureSchema, resetData } from '../helpers/db';
+import { adminOne, createUser, ensureSchema, resetData, setWebsiteVerificationCode } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
 import { normalizeRecordId, toRouteId } from '../helpers/ids';
 import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
@@ -103,13 +103,7 @@ describe('API Core CRUD/Results Integration', () => {
 		const websiteId = toRouteId(websiteRes.json.data.website.id);
 		const websiteRecordId = normalizeRecordId(websiteRes.json.data.website.id);
 		const code = generateWebsiteVerificationCode();
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{
-			id: websiteRecordId,
-			code
-			}
-		);
+		const markVerified = await setWebsiteVerificationCode(websiteRecordId, code);
 		expect(markVerified?.verified_at).toBeTruthy();
 		const jobRes = await client.call({
 			method: 'POST',
@@ -162,12 +156,9 @@ describe('API Core CRUD/Results Integration', () => {
 		});
 		expect(website.response.status).toBe(201);
 		const code = generateWebsiteVerificationCode();
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{
-			id: normalizeRecordId(website.json.data.website.id),
+		const markVerified = await setWebsiteVerificationCode(
+			normalizeRecordId(website.json.data.website.id),
 			code
-			}
 		);
 		expect(markVerified?.verified_at).toBeTruthy();
 
@@ -218,10 +209,7 @@ describe('API Core CRUD/Results Integration', () => {
 
 		const websiteRecordId = normalizeRecordId(website.json.data.website.id);
 		const code = generateWebsiteVerificationCode();
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{ id: websiteRecordId, code }
-		);
+		const markVerified = await setWebsiteVerificationCode(websiteRecordId, code);
 		expect(markVerified?.verified_at).toBeTruthy();
 
 		const job = await client.call({
@@ -312,12 +300,9 @@ describe('API Core CRUD/Results Integration', () => {
 			});
 			expect(website.response.status).toBe(201);
 			const code = generateWebsiteVerificationCode();
-			const markVerified = await adminOne<{ verified_at: unknown }>(
-				'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-				{
-				id: normalizeRecordId(website.json.data.website.id),
+			const markVerified = await setWebsiteVerificationCode(
+				normalizeRecordId(website.json.data.website.id),
 				code
-				}
 			);
 			expect(markVerified?.verified_at).toBeTruthy();
 

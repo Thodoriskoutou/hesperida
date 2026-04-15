@@ -6,11 +6,18 @@ import { isSuperuser } from '$lib/server/policy';
 import type { Website } from '$lib/types';
 import { RecordId } from 'surrealdb';
 
+const websiteSelectSql =
+	'SELECT *, verification_id.verification_code as verification_code, verification_id.verified_at as verified_at, verification_id.verification_method as verification_method FROM websites';
+
 const getWebsite = async (websiteId: RecordId, token: string, superuser = false) => {
 	if (superuser) {
-		return withAdminDb((db) => queryOne<Website>(db, 'SELECT * FROM websites WHERE id = $id LIMIT 1;', { id: websiteId }));
+		return withAdminDb((db) =>
+			queryOne<Website>(db, `${websiteSelectSql} WHERE id = $id LIMIT 1;`, { id: websiteId })
+		);
 	}
-	return withUserDb(token, (db) => queryOne<Website>(db, 'SELECT * FROM websites WHERE id = $id LIMIT 1;', { id: websiteId }));
+	return withUserDb(token, (db) =>
+		queryOne<Website>(db, `${websiteSelectSql} WHERE id = $id LIMIT 1;`, { id: websiteId })
+	);
 };
 
 /**

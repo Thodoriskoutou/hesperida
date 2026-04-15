@@ -57,6 +57,7 @@ Notification targets:
 - `GET /api/v1/job-queue`
 - `GET /api/v1/job-queue/{id}`
 - `POST /api/v1/job-queue/{id}/cancel`
+- `POST /api/v1/job-queue/{id}/unstuck`
 
 ## Results
 

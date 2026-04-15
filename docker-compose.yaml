@@ -139,7 +139,7 @@ services:
 
   orchestrator:
     restart: always
-    profiles: ["backend", "aio"]
+    profiles: ["backend", "aio", "dev"]
 #    command: ["--rebuild"] # comment this for not to rebuild the tool containers on every orchestrator start
     depends_on:
       db:
@@ -168,7 +168,7 @@ services:
 
   web:
     restart: always
-    profiles: ["backend"]
+    profiles: ["backend", "aio"]
     depends_on:
       db:
         condition: service_healthy
@@ -247,7 +247,7 @@ services:
   db:
     restart: always
     image: surrealdb/surrealdb:latest
-    profiles: ["database", "aio"]
+    profiles: ["database", "aio", "dev"]
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
@@ -274,7 +274,7 @@ services:
 
   db-init:
     image: surrealdb/surrealdb:latest
-    profiles: ["database", "aio"]
+    profiles: ["database", "aio", "dev"]
     depends_on:
       db:
         condition: service_healthy

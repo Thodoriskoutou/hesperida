@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
-import { adminOne, ensureSchema, resetData } from '../helpers/db';
+import { ensureSchema, resetData, setWebsiteVerificationCode, markWebsiteVerified } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
 import { normalizeRecordId, toRouteId } from '../helpers/ids';
 import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
@@ -64,10 +64,7 @@ describe('API Website Verification Integration', () => {
 		expect(blocked.response.status).toBe(403);
 		expect(blocked.json.error.code).toBe('website_not_verified');
 		const code = generateWebsiteVerificationCode();
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{ id: websiteRecordId, code }
-		);
+		const markVerified = await setWebsiteVerificationCode(websiteRecordId, code);
 		expect(markVerified?.verified_at).toBeTruthy();
 
 		const allowed = await client.call({
@@ -78,7 +75,7 @@ describe('API Website Verification Integration', () => {
 		expect(allowed.response.status).toBe(201);
 	});
 
-	test('manual verify endpoint returns cached verification details when verified_at is fresh', async () => {
+test('manual verify endpoint returns already_verified when verified_at is set', async () => {
 		const user = await registerUser('verify_endpoint');
 		const client = new ApiTestClient({ bearerToken: user.token });
 
@@ -93,17 +90,15 @@ describe('API Website Verification Integration', () => {
 		expect(created.response.status).toBe(201);
 
 		const websiteRecordId = normalizeRecordId(created.json.data.website.id);
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{ id: websiteRecordId }
-		);
+		const markVerified = await markWebsiteVerified(websiteRecordId);
 		expect(markVerified?.verified_at).toBeTruthy();
 
 		const res = await client.call({
 			method: 'GET',
 			path: `/api/v1/websites/${encodeURIComponent(toRouteId(websiteRecordId))}/verify`
 		});
-		expect(res.response.status).toBe(200);
+		expect(res.response.status).toBe(409);
+		expect(res.json.error.code).toBe('already_verified');
 		expect(res.json.data.verification.verified).toBeTrue();
 		expect(res.json.data.verification.method).toBe('cache');
 		expect(typeof res.json.data.verification.txt_host).toBe('string');

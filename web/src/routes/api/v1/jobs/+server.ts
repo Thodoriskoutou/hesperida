@@ -137,22 +137,25 @@ export const POST: RequestHandler = async (event) => {
 
 		let websiteRow = await (isSuperuser(auth.user)
 			? withAdminDb((db) =>
-					queryOne<Website>(
+					queryOne<Website & { owner_group?: string | null }>(
 						db,
-						'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+						'SELECT id, url, verification_id, owner.group as owner_group FROM websites WHERE id = $id LIMIT 1;',
 						{ id: website }
 					)
 				)
 			: withUserDb(auth.token, (db) =>
 					queryOne<Website>(
 						db,
-						'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+						'SELECT id, url, verification_id FROM websites WHERE id = $id LIMIT 1;',
 						{ id: website }
 					)
 				));
 		if (!websiteRow) return jsonError(event, 404, 'not_found', 'Website not found.');
 
-		const verification = await verifyWebsiteOwnership(websiteRow);
+		const group = isSuperuser(auth.user)
+			? (websiteRow as Website & { owner_group?: string | null }).owner_group ?? auth.user.group
+			: auth.user.group;
+		const verification = await verifyWebsiteOwnership(websiteRow, group);
 
 		if (!verification.verified) {
 			return jsonError(

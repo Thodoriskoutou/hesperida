@@ -48,8 +48,19 @@ export interface Website {
     users: RecordId<'users'>[];
     description: string;
     url: string;
+  verification_id?: RecordId<'website_verifications'>;
+  verified_at?: DateTime;
+  verification_method?: 'dns' | 'file' | null;
+    created_at?: DateTime;
+}
+
+export interface WebsiteVerification {
+    id?: RecordId<'website_verifications'>;
+    group: string;
+    registrable_domain: string;
     verification_code: string;
     verified_at?: DateTime;
+    verification_method?: 'dns' | 'file' | null;
     created_at?: DateTime;
 }
 

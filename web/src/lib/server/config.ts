@@ -21,13 +21,6 @@ const notificationEmailTargetTemplate = read('NOTIFICATION_EMAIL_TARGET_TEMPLATE
 const notificationBrandLogoUrl = read('NOTIFICATION_BRAND_LOGO_URL');
 const gotenbergUrl = read('GOTENBERG_URL') || 'http://pdf:3000';
 const authSignupEnabled = (read('AUTH_SIGNUP_ENABLED') || 'true').toLowerCase() === 'true';
-const websiteVerificationTtlRaw = read('WEBSITE_VERIFICATION_TTL_SECONDS') || '604800';
-const websiteVerificationTtlSeconds = Number.parseInt(websiteVerificationTtlRaw, 10);
-if (!Number.isFinite(websiteVerificationTtlSeconds) || websiteVerificationTtlSeconds < 1) {
-	throw new Error(
-		`Invalid WEBSITE_VERIFICATION_TTL_SECONDS: ${websiteVerificationTtlRaw}. Expected a positive integer.`
-	);
-}
 
 const surrealProtocol = read('SURREAL_PROTOCOL') || 'http';
 const wsProtocol = surrealProtocol === 'https' ? 'wss' : 'ws';
@@ -43,7 +36,6 @@ export const config = {
 	notificationBrandLogoUrl,
 	gotenbergUrl,
 	authSignupEnabled,
-	websiteVerificationTtlSeconds,
 	surrealUser: read('SURREAL_USER'),
 	surrealPass: read('SURREAL_PASS'),
 	surrealNamespace: read('SURREAL_NAMESPACE') || 'main',

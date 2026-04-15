@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.6.0] - 2026-04-15
+
+### Added
+
+- "dev" docker compose profile
+- Diff compare scan results (1 tool type at a time)
+
+### Changed
+
+- The SEO tool changed from cli to typescript implementation
+- Detailed Website verifications stored in database
+
+### Fixed
+
+- Too long SEO results don't crash the SEO tool
+- No need to verify more than 1 websites of the same domain (same-group only)
+- Web missing from the "aio" docker compose profile
+
 ## [0.5.2] - 2026-04-14
 
 ### Added

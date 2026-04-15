@@ -4,7 +4,10 @@ import { queryMany, queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { canCreateWebsite, isSuperuser } from '$lib/server/policy';
 import { withRequiredUser } from '$lib/server/route';
 import { parsePaginationParams } from '$lib/server/pagination';
-import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
+import { ensureWebsiteVerification } from '$lib/server/website-verification';
+
+const websiteSelectSql =
+	'SELECT *, verification_id.verification_code as verification_code, verification_id.verified_at as verified_at, verification_id.verification_method as verification_method FROM websites';
 
 /**
  * @swagger
@@ -28,12 +31,14 @@ export const GET: RequestHandler = async (event) => {
 
 		if (pagination.value.mode === 'all') {
 			if (isSuperuser(auth.user)) {
-				const rows = await withAdminDb((db) => queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;'));
+				const rows = await withAdminDb((db) =>
+					queryMany(db, `${websiteSelectSql} ORDER BY created_at DESC;`)
+				);
 				return jsonOk(event, { websites: rows ?? [] });
 			}
 
 			const rows = await withUserDb(auth.token, (db) =>
-				queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC;')
+				queryMany(db, `${websiteSelectSql} ORDER BY created_at DESC;`)
 			);
 			return jsonOk(event, { websites: rows ?? [] });
 		}
@@ -41,7 +46,7 @@ export const GET: RequestHandler = async (event) => {
 		const { limit, offset, page, pageSize } = pagination.value;
 		if (isSuperuser(auth.user)) {
 			const rows = await withAdminDb((db) =>
-				queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC LIMIT $limit START $offset;', {
+				queryMany(db, `${websiteSelectSql} ORDER BY created_at DESC LIMIT $limit START $offset;`, {
 					limit,
 					offset
 				})
@@ -58,7 +63,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const rows = await withUserDb(auth.token, (db) =>
-			queryMany(db, 'SELECT * FROM websites ORDER BY created_at DESC LIMIT $limit START $offset;', {
+			queryMany(db, `${websiteSelectSql} ORDER BY created_at DESC LIMIT $limit START $offset;`, {
 				limit,
 				offset
 			})
@@ -115,7 +120,6 @@ export const POST: RequestHandler = async (event) => {
 
 		const url = typeof payload.url === 'string' ? payload.url.trim() : '';
 		const description = typeof payload.description === 'string' ? payload.description.trim() : '';
-		const verificationCode = generateWebsiteVerificationCode();
 
 		if (!url) {
 			return jsonError(event, 400, 'bad_request', 'url is required.');
@@ -126,19 +130,41 @@ export const POST: RequestHandler = async (event) => {
 				? withAdminDb((db) =>
 						queryOne(
 							db,
-							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
-							{ user: auth.user.id, url, description, verificationCode }
+							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_id: NONE } RETURN AFTER;',
+							{ user: auth.user.id, url, description }
 						)
 					)
 				: withUserDb(auth.token, (db) =>
 						queryOne(
 							db,
-							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_code: $verificationCode, verified_at: NONE } RETURN AFTER;',
-							{ user: auth.user.id, url, description, verificationCode }
+							'CREATE websites CONTENT { owner: $user, users: [], url: $url, description: $description, verification_id: NONE } RETURN AFTER;',
+							{ user: auth.user.id, url, description }
 						)
 					));
 
-			return jsonOk(event, { website }, 201);
+			if (!website) {
+				return jsonError(event, 400, 'create_failed', 'Failed to create website.');
+			}
+
+			await ensureWebsiteVerification(website, auth.user.group);
+
+			const websiteWithVerification = await (isSuperuser(auth.user)
+				? withAdminDb((db) =>
+						queryOne(
+							db,
+							`${websiteSelectSql} WHERE id = $id LIMIT 1;`,
+							{ id: website.id }
+						)
+					)
+				: withUserDb(auth.token, (db) =>
+						queryOne(
+							db,
+							`${websiteSelectSql} WHERE id = $id LIMIT 1;`,
+							{ id: website.id }
+						)
+					));
+
+			return jsonOk(event, { website: websiteWithVerification ?? website }, 201);
 		} catch (error) {
 			return jsonError(event, 400, 'create_failed', (error as Error).message);
 		}

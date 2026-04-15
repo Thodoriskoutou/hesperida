@@ -10,7 +10,7 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 |-------------|---------------------------------|------------|-----------------------------------------------------------------------------------|
 | Domain      | [rdapper](https://www.npmjs.com/package/rdapper), [whois](https://github.com/rfc1036/whois), [subfinder](https://github.com/projectdiscovery/subfinder)                  | ✅         | Gets basic domain info (e.g. registrar, registration/expiry dates, etc) & records  |
 | Probe       | [httpx](https://github.com/projectdiscovery/httpx)                           | ✅         | Gets basic info about the web server, and the tech stack                          |
-| SEO         | [@seomator/seo-audit](https://www.npmjs.com/package/@seomator/seo-audit), [playwright](https://github.com/microsoft/playwright) | ✅         | Check against 251 SEO Audit Rules across 20 categories                            |
+| SEO         | [@seomator/seo-audit](https://www.npmjs.com/package/@seomator/seo-audit), [playwright](https://github.com/microsoft/playwright) | ✅         | TypeScript-based SEO audit and scoring across 251 rules in 20 categories         |
 | SSL         | -                               | ✅         | Uses `node:tls` to get basic certificate info                                     |
 | WCAG        | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright), [playwright](https://github.com/microsoft/playwright)            | ✅            | Check against Web Accessibility rules (also takes a full-height screenshot)                                             |
 | Whois       | [whois](https://github.com/rfc1036/whois)                           | ✅         | Gets IP whois info                                                                |
@@ -22,7 +22,8 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 A Sveltekit dashboard is in beta. The main functionality is:
 
 1. CRUD for users/websites/jobs
-2. View scan results
+2. Website verification instructions and verification checks
+3. View scan results
 
 ### API
 
@@ -31,7 +32,8 @@ All the dashboard functionality is available through [OpenAPI](http://localhost:
 ### Alerts & Webhooks
 
 [Apprise](https://github.com/caronc/apprise) is now integrated for notification messages and emails.
-In this phase, notification targets are user-level settings stored in `users.notification_targets`.
+Invite/forgot flows use `NOTIFICATION_EMAIL_TARGET_TEMPLATE` as the delivery target.
+User-level notification targets are stored in `users.notification_targets` for in-app managed channels.
 
 ## Tech Stack
 
@@ -48,6 +50,8 @@ In this phase, notification targets are user-level settings stored in `users.not
   `docker compose --profile aio up -d`
   - With SurrealDB SaaS
   `docker compose run --rm db-init && docker compose --profile backend up -d`
+  - Development profile (db + db-init + orchestrator only)
+  `docker compose --profile dev up -d`
 4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
 5. Open `https://localhost:3000` (or according to your configuration)
 
@@ -134,7 +138,7 @@ The more the merrier, but at least:
 - 4GB RAM
 - 6GB of available Storage (5GB for the images + 1GB for the actual data)
 
-There is a distinction between light (plain cli tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
+There is a distinction between light (CLI/Node tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
 
 ## F.A.Q.
 
@@ -184,11 +188,12 @@ That said; score calculations used by Hesperida can change between configuration
 ### Can I scan any website I want or just my own?
 
 A DNS / web root file verification process has been added in v0.4.1, thus you can only scan websites you have access to their DNS zones or web root.
+Verification is shared per `(group, registrable_domain)` and stored in dedicated verification records.
 
 To verify your website either:
 
-- add a TXT DNS record for `hesperida.yourdomain.com` with `websites.verification_token` as its value, or
-- add a `hesperida-${websites.verification_token}.txt` (empty) file to your web root
+- add a TXT DNS record for `hesperida.yourdomain.com` with `verification_code` as its value, or
+- add a `hesperida-${verification_code}.txt` (empty) file to your web root
 
 then verify it via the dashboard or use the `/api/v1/websites/[id]/verify` API endpoint.
 

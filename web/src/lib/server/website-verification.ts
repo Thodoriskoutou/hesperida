@@ -1,8 +1,7 @@
-import { config } from '$lib/server/config';
-import { toRegistrableDomain } from "rdapper";
-import { DateTime, Duration, RecordId } from 'surrealdb';
+import { toRegistrableDomain } from 'rdapper';
+import { DateTime, RecordId } from 'surrealdb';
 import { queryOne, withAdminDb } from '$lib/server/db';
-import type { Website } from '$lib/types';
+import type { Website, WebsiteVerification } from '$lib/types';
 
 type VerificationMethod = 'cache' | 'dns' | 'http' | 'none';
 
@@ -13,6 +12,7 @@ type VerificationResult = {
 	txtValue: string;
 	httpUrl: string;
 	errors?: string[];
+	verification_method?: 'dns' | 'file' | null;
 };
 
 const cleanTxtValue = (value: string): string => value.replace(/^"+|"+$/g, '').replace(/\\"/g, '"').trim();
@@ -21,15 +21,8 @@ export const generateWebsiteVerificationCode = (): string =>
 	crypto.randomUUID().replace(/-/g, '').toLowerCase();
 
 export const isWebsiteVerificationFresh = (
-	verifiedAt: DateTime | null | undefined,
-	ttlSeconds = config.websiteVerificationTtlSeconds
-): boolean => {
-	if (!verifiedAt) return false;
-	const now = new DateTime();
-	const ttlDuration = new Duration(`${ttlSeconds}s`);
-	const threshold = verifiedAt.add(ttlDuration);
-	return now.compare(threshold) !== 1;
-};
+	verifiedAt: DateTime | null | undefined
+): boolean => Boolean(verifiedAt);
 
 const checkDnsTxt = async (txtHost: string, code: string): Promise<{ ok: boolean; error?: string }> => {
 	try {
@@ -64,95 +57,160 @@ const checkHttpFile = async (httpUrl: string): Promise<{ ok: boolean; error?: st
 	}
 };
 
-const updateWebsiteVerificationDate = async (id: RecordId, isValid: boolean = true): Promise<{ ok: boolean; error?: string }> => {
+const updateWebsiteVerificationDate = async (
+	id: RecordId,
+	isValid: boolean,
+	method?: 'dns' | 'file'
+): Promise<{ ok: boolean; error?: string }> => {
 	const refreshed = await withAdminDb((db) =>
-		queryOne<Website>(
+		queryOne<WebsiteVerification>(
 			db,
 			isValid
-				? 'UPDATE websites SET verified_at = time::now() WHERE id = $id RETURN id, url, verification_code, verified_at;'
-				: 'UPDATE websites SET verified_at = NONE WHERE id = $id RETURN id, url, verification_code, verified_at;',
-			{ id }
+				? 'UPDATE website_verifications SET verified_at = time::now(), verification_method = $method WHERE id = $id RETURN id, verification_code, verified_at, verification_method;'
+				: 'UPDATE website_verifications SET verified_at = NONE WHERE id = $id RETURN id, verification_code, verified_at, verification_method;',
+			{ id, method }
 		)
 	);
 	if (!refreshed) {
-		return { ok: false, error: 'Unable to persist verification date.'};
-	} else {
-		return { ok: true }
+		return { ok: false, error: 'Unable to persist verification date.' };
 	}
-}
+	return { ok: true };
+};
 
-export const verifyWebsiteOwnership = async (website: Website, skipCache: boolean = false): Promise<VerificationResult> => {
+export const ensureWebsiteVerification = async (
+	website: Website,
+	group: string
+): Promise<WebsiteVerification | null> => {
+	if (website.verification_id) {
+		const existing = await withAdminDb((db) =>
+			queryOne<WebsiteVerification>(
+				db,
+				'SELECT * FROM website_verifications WHERE id = $id LIMIT 1;',
+				{ id: website.verification_id }
+			)
+		);
+		return existing ?? null;
+	}
+
+	let parsed: URL;
+	try {
+		parsed = new URL(website.url);
+	} catch {
+		return null;
+	}
+	const registrableDomain = toRegistrableDomain(parsed.hostname);
+	if (!registrableDomain && !parsed.hostname.endsWith('example.test')) {
+		return null;
+	}
+	const domain = registrableDomain ?? parsed.hostname;
+
+	const existing = await withAdminDb((db) =>
+		queryOne<WebsiteVerification>(
+			db,
+			'SELECT * FROM website_verifications WHERE `group` = $group AND registrable_domain = $domain LIMIT 1;',
+			{ group, domain }
+		)
+	);
+	if (existing) {
+		await withAdminDb((db) =>
+			queryOne<Website>(
+				db,
+				'UPDATE websites SET verification_id = $verificationId WHERE id = $id RETURN id;',
+				{ id: website.id, verificationId: existing.id }
+			)
+		);
+		return existing;
+	}
+
+	const created = await withAdminDb((db) =>
+		queryOne<WebsiteVerification>(
+			db,
+			'CREATE website_verifications CONTENT { `group`: $group, registrable_domain: $domain, verification_code: $code, verified_at: NONE } RETURN AFTER;',
+			{ group, domain, code: generateWebsiteVerificationCode() }
+		)
+	);
+	if (!created) return null;
+
+	await withAdminDb((db) =>
+		queryOne<Website>(
+			db,
+			'UPDATE websites SET verification_id = $verificationId WHERE id = $id RETURN id;',
+			{ id: website.id, verificationId: created.id }
+		)
+	);
+	return created;
+};
+
+export const verifyWebsiteOwnership = async (
+	website: Website,
+	group: string,
+	skipCache: boolean = false
+): Promise<VerificationResult> => {
 	const verifyResult: VerificationResult = {
 		verified: false,
 		method: 'none',
-		txtValue: website.verification_code,
+		txtValue: '',
 		txtHost: '',
 		httpUrl: '',
 		errors: []
-	}
-	if(!verifyResult.txtValue) {
-		// verification code missing, website created before v0.4.1
-		verifyResult.txtValue = generateWebsiteVerificationCode();
-		const updated = await withAdminDb((db) =>
-			queryOne<Website>(
-				db,
-				'UPDATE websites SET verification_code = $code WHERE id = $id RETURN id, url, verification_code, verified_at;',
-				{ id: website.id, code: verifyResult.txtValue }
-			)
-		);
-		if (!updated) {
-			verifyResult.errors?.push('Unable to persist verification code.');
-			return verifyResult;
-		}
-	}
+	};
 
-	let parsed: URL
+	const verification = await ensureWebsiteVerification(website, group);
+	if (!verification) {
+		verifyResult.errors?.push('Unable to load verification record.');
+		return verifyResult;
+	}
+	verifyResult.txtValue = verification.verification_code;
+
+	let parsed: URL;
 	try {
 		parsed = new URL(website.url);
-	} catch(e) {
+	} catch (e) {
 		verifyResult.errors?.push((e as Error).message);
 		return verifyResult;
 	}
 	verifyResult.httpUrl = `${parsed.origin}/hesperida-${verifyResult.txtValue}.txt`;
 	const registrableDomain = toRegistrableDomain(parsed.hostname);
-	if(!registrableDomain && !parsed.hostname.endsWith('example.test')) {
-		// allow *.example.test for tests to pass
+	if (!registrableDomain && !parsed.hostname.endsWith('example.test')) {
 		verifyResult.errors?.push('Invalid Domain.');
 		return verifyResult;
 	}
 
-	verifyResult.txtHost = `hesperida.${registrableDomain}`.toLowerCase();
-	if(!skipCache) {
-		const cached = isWebsiteVerificationFresh(website.verified_at, config.websiteVerificationTtlSeconds);
+	verifyResult.txtHost = `hesperida.${registrableDomain ?? parsed.hostname}`.toLowerCase();
+	if (!skipCache) {
+		const cached = isWebsiteVerificationFresh(verification.verified_at);
 		if (cached) {
 			verifyResult.method = 'cache';
 			verifyResult.verified = true;
+			verifyResult.verification_method = verification.verification_method ?? null;
 			return verifyResult;
 		}
 	}
 
 	const dns = await checkDnsTxt(verifyResult.txtHost, verifyResult.txtValue);
-	let updateResult = await updateWebsiteVerificationDate(website.id!, dns.ok);
-	if(!updateResult.ok) {
+	let updateResult = await updateWebsiteVerificationDate(verification.id!, dns.ok, 'dns');
+	if (!updateResult.ok) {
 		verifyResult.errors?.push(updateResult.error!);
 		return verifyResult;
 	}
 	if (dns.ok) {
 		verifyResult.method = 'dns';
 		verifyResult.verified = true;
+		verifyResult.verification_method = 'dns';
 		return verifyResult;
 	}
 	if (dns.error) verifyResult.errors?.push(dns.error);
 
 	const http = await checkHttpFile(verifyResult.httpUrl);
-	updateResult = await updateWebsiteVerificationDate(website.id!, http.ok);
-	if(!updateResult.ok) {
+	updateResult = await updateWebsiteVerificationDate(verification.id!, http.ok, 'file');
+	if (!updateResult.ok) {
 		verifyResult.errors?.push(updateResult.error!);
 		return verifyResult;
 	}
 	if (http.ok) {
 		verifyResult.method = 'http';
 		verifyResult.verified = true;
+		verifyResult.verification_method = 'file';
 		return verifyResult;
 	}
 	if (http.error) verifyResult.errors?.push(http.error);

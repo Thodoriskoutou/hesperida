@@ -24,10 +24,12 @@ Accepted verification methods:
 
 1. DNS TXT record:
    - Host: `hesperida.<registrable-domain>`
-   - Value: `websites.verification_code`
+   - Value: `website_verifications.verification_code`
 2. HTTP fallback:
-   - URL path: `/hesperida-<verification_code>.txt`
+   - URL path: `/hesperida-<website_verifications.verification_code>.txt`
    - Requires HTTP `200`
+
+Verification records are shared per `(group, registrable_domain)`, so websites in the same group/domain reuse the same verification code.
 
 ## 4. Create a Job
 

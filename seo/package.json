@@ -1,0 +1,16 @@
+{
+  "name": "hesperida-seo",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@seomator/seo-audit": "^3.0.0",
+    "surrealdb": "^2.0.3"
+  }
+}

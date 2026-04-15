@@ -15,13 +15,15 @@
 	import { formatDate } from '$lib/utils';
 	import { createToastEnhance } from '$lib/form-toast';
     import * as Field from '$lib/components/ui/field/index.js';
-  import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+    import { Checkbox } from '$lib/components/ui/checkbox/index.js';
+    import * as Popover from '$lib/components/ui/popover/index.js';
 
 	let { data, form } = $props();
 	let inviteRole = $state<'admin' | 'editor' | 'viewer'>('viewer');
 	let verifyDialog = $state(false);
+	let copyPopover = $state(false);
 
-	const txtHost = $derived(() => data.txtHost ?? 'hesperida.<domain>');
+	const verificationRecord = $derived(`${data.txtHost} TXT ${data.website.verification_code}`);
 
 	const verificationFileName = (): string =>
 		`hesperida-${data.website.verification_code ?? ''}.txt`;
@@ -74,6 +76,7 @@
 			<p><strong>Description:</strong> {data.website.description ?? '-'}</p>
 			<p><strong>Added at:</strong> {formatDate(data.website.created_at, true)}</p>
 			<p><strong>Verification code:</strong> {data.website.verification_code ?? '-'}</p>
+			<p><strong>Verification method:</strong> {data.website.verification_method ? data.website.verification_method.toUpperCase() : '-'}</p>
 			<p><strong>Verified at:</strong> {data.website.verified_at ? formatDate(data.website.verified_at, true) : 'Not verified'}</p>
 			{#if !data.website.verified_at}
 				<Button type="button" variant="outline" onclick={() => (verifyDialog = true)}>
@@ -282,7 +285,7 @@
 </div>
 
 <AlertDialog.Root bind:open={verifyDialog}>
-	<AlertDialog.Content class="sm:max-w-lg">
+	<AlertDialog.Content>
 		<AlertDialog.Header>
 			<AlertDialog.Title>Verify Website Ownership</AlertDialog.Title>
 			<AlertDialog.Description>
@@ -296,10 +299,14 @@
 				<InputGroup.Root>
 					<InputGroup.Input
 						readonly
-						value={`${txtHost} TXT ${data.website.verification_code ?? ''}`.trim()}
+						value={verificationRecord}
 					/>
-					<InputGroup.Button type="button" onclick={() => copyToClipboard(`${txtHost} TXT ${data.website.verification_code ?? ''}`.trim())}>
-						Copy
+					<InputGroup.Button>
+						<Popover.Root bind:open={copyPopover}>
+							<Popover.Trigger 
+								onclick={() => {copyToClipboard(verificationRecord);setTimeout(() => copyPopover = false, 1000)}}>Copy</Popover.Trigger>
+							<Popover.Content side="top" align="center" class="w-fit">Copied!</Popover.Content>
+						</Popover.Root>
 					</InputGroup.Button>
 				</InputGroup.Root>
 			</div>

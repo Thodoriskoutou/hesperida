@@ -57,6 +57,8 @@ Route gating is enforced in `hooks.server.ts`.
 - Websites have a single `owner` and multiple `users` (members).
 - ACL combines user role + tenant group + website membership.
 - `is_superuser=true` bypasses tenant scoping.
+- Website verification is stored in shared records keyed by `(group, registrable_domain)`.
+- Verification method is tracked as `dns` or `file`.
 
 ## Additional Components
 

@@ -7,6 +7,34 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.6.0] - 2026-04-15
+
+### Added
+
+- "dev" docker compose profile
+
+### Changed
+
+- The SEO tool changed from cli to typescript implementation
+- Detailed Website verifications stored in database
+
+### Fixed
+
+- Too long SEO results don't crash the SEO tool
+- No need to verify more than 1 websites of the same domain (same-group only)
+- Web missing from the "aio" docker compose profile
+
+## [0.5.2] - 2026-04-14
+
+### Added
+
+- Website verification instructions in the Dashboard
+
+### Fixed
+
+- Domain verification worked on unverified domain
+- Websites without a CDN would fail the probe test
+
 ## [0.5.1] - 2026-04-14
 
 ### Added

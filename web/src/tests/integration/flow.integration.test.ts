@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from 'bun:test';
-import { adminOne, ensureSchema, resetData } from '../helpers/db';
+import { ensureSchema, resetData, setWebsiteVerificationCode } from '../helpers/db';
 import { ApiTestClient, randomEmail } from '../helpers/request';
 import { normalizeRecordId, toRouteId } from '../helpers/ids';
 import { generateWebsiteVerificationCode } from '$lib/server/website-verification';
@@ -55,10 +55,7 @@ describe('API Ordered Flow Integration', () => {
 		const websiteId = normalizeRecordId(createWebsite.json.data.website.id);
 		const websiteRouteId = toRouteId(createWebsite.json.data.website.id);
 		const code = generateWebsiteVerificationCode();
-		const markVerified = await adminOne<{ verified_at: unknown }>(
-			'UPDATE websites SET verification_code = $code, verified_at = time::now() WHERE id = type::record($id) RETURN verified_at;',
-			{ id: websiteId, code }
-		);
+		const markVerified = await setWebsiteVerificationCode(websiteId, code);
 		expect(markVerified?.verified_at).toBeTruthy();
 
 		// 4) create job

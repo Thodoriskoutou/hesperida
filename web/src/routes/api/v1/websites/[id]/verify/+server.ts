@@ -3,28 +3,29 @@ import { requireUser } from '$lib/server/guards';
 import { jsonError, jsonOk } from '$lib/server/http';
 import { queryOne, withAdminDb, withUserDb } from '$lib/server/db';
 import { isSuperuser } from '$lib/server/policy';
-import { isWebsiteVerificationFresh, verifyWebsiteOwnership } from '$lib/server/website-verification';
-import { config } from '$lib/server/config';
+import { ensureWebsiteVerification, verifyWebsiteOwnership } from '$lib/server/website-verification';
 import type { Website } from '$lib/types';
 import { RecordId } from 'surrealdb';
+
+type AccessibleWebsite = Website & { owner_group?: string | null };
 
 const getAccessibleWebsite = async (
 	websiteId: RecordId,
 	isUserSuperuser: boolean,
 	token: string
-): Promise<Website | null> =>
+): Promise<AccessibleWebsite | null> =>
 	isUserSuperuser
 		? withAdminDb((db) =>
-				queryOne<Website>(
+				queryOne<AccessibleWebsite>(
 					db,
-					'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+					'SELECT id, url, verification_id, owner.group as owner_group FROM websites WHERE id = $id LIMIT 1;',
 					{ id: websiteId }
 				)
 			)
 		: withUserDb(token, (db) =>
-				queryOne<Website>(
+				queryOne<AccessibleWebsite>(
 					db,
-					'SELECT id, url, verification_code, verified_at FROM websites WHERE id = $id LIMIT 1;',
+					'SELECT id, url, verification_id FROM websites WHERE id = $id LIMIT 1;',
 					{ id: websiteId }
 				)
 			);
@@ -47,7 +48,7 @@ const getAccessibleWebsite = async (
  *       200:
  *         description: Verification result
  *       409:
- *         description: Website is already verified and cache is still valid
+ *         description: Website is already verified
  *       404:
  *         $ref: '#/components/responses/NotFound'
  *       422:
@@ -69,15 +70,27 @@ export const GET: RequestHandler = async (event) => {
 	if (!accessible) {
 		return jsonError(event, 404, 'not_found', 'Website not found.');
 	}
-	if (isWebsiteVerificationFresh(accessible.verified_at, config.websiteVerificationTtlSeconds)) {
+	const group = isSuperuser(auth.user) ? accessible.owner_group ?? auth.user.group : auth.user.group;
+	const verificationRecord = await ensureWebsiteVerification(accessible, group);
+	if (!verificationRecord) {
+		return jsonError(event, 422, 'verification_failed', 'Unable to load verification record.');
+	}
+	if (verificationRecord.verified_at) {
+		const cached = await verifyWebsiteOwnership(accessible, group);
 		return jsonError(event, 409, 'already_verified', 'Website is already verified.', {
 			website_id: websiteId,
-			verified_at: accessible.verified_at ?? null,
-			ttl_seconds: config.websiteVerificationTtlSeconds
+			verification: {
+				verified: cached.verified,
+				method: cached.method,
+				txt_host: cached.txtHost,
+				txt_value: cached.txtValue,
+				http_url: cached.httpUrl,
+				errors: cached.errors ?? null
+			}
 		});
 	}
 
-	const verification = await verifyWebsiteOwnership(accessible);
+	const verification = await verifyWebsiteOwnership(accessible, group);
 
 	const result = {
 		website_id: websiteId,
@@ -87,8 +100,7 @@ export const GET: RequestHandler = async (event) => {
 			txt_host: verification.txtHost,
 			txt_value: verification.txtValue,
 			http_url: verification.httpUrl,
-			errors: verification.errors ?? null,
-			ttl_seconds: config.websiteVerificationTtlSeconds
+			errors: verification.errors ?? null
 		}
 	};
 	return verification.verified ?

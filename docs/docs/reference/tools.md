@@ -15,7 +15,7 @@ Each tool runs in its own container and writes output to a dedicated results tab
 | `domain` | domain metadata, DNS records, passive subdomains | `domain_results` |
 | `whois` | IP whois enrichment | `whois_results` |
 | `ssl` | certificate metadata and expiry | `ssl_results` |
-| `seo` | SEO audit and scoring | `seo_results` |
+| `seo` | TypeScript SEO audit and scoring (`@seomator/seo-audit`) | `seo_results` |
 | `wcag` | accessibility checks + screenshots | `wcag_results` |
 | `security` | aggregated vulnerability findings and score | `security_results` |
 | `stress` | load testing and latency metrics | `stress_results` |

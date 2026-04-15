@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { queryMany, queryOne, withAdminDb } from '../../lib/server/db';
+import { toRegistrableDomain } from 'rdapper';
 
 let initialized = false;
 const DB_TIMEOUT_MS = Number.parseInt(process.env.TEST_DB_TIMEOUT_MS || '10000', 10);
@@ -69,6 +70,7 @@ export const resetData = async (): Promise<void> => {
 	await withAdmin(async (db) => {
 		await db
 			.query(`
+				DELETE website_verifications;
 				DELETE job_queue;
 				DELETE jobs;
 				DELETE websites;
@@ -137,38 +139,83 @@ export const createWebsite = async (input: {
 	verificationCode?: string;
 	verifiedAt?: string | null;
 }) => {
-	if (input.verifiedAt) {
-		return adminOne<{ id: string; owner: string; users: string[]; url: string }>(
-			`CREATE websites CONTENT {
-				owner: type::record('users', $user),
-				users: [type::record('users', $user)],
-				url: $url,
-				description: $description,
-				verification_code: $verificationCode,
-				verified_at: <datetime>$verifiedAt
-			} RETURN AFTER;`,
-			{
-				...input,
-				user: extractRawId(input.user),
-				verificationCode: input.verificationCode ?? crypto.randomUUID().replace(/-/g, '')
-			}
-		);
-	}
+	const ownerId = extractRawId(input.user);
+	const owner = await adminOne<{ group?: string }>(
+		'SELECT `group` FROM users WHERE id = type::record(\'users\', $id) LIMIT 1;',
+		{ id: ownerId }
+	);
+	const group = owner?.group ?? crypto.randomUUID();
 
-	return adminOne<{ id: string; owner: string; users: string[]; url: string }>(
+	const website = await adminOne<{ id: string; owner: string; users: string[]; url: string }>(
 		`CREATE websites CONTENT {
 			owner: type::record('users', $user),
 			users: [type::record('users', $user)],
 			url: $url,
 			description: $description,
-			verification_code: $verificationCode,
+			verification_id: NONE,
 			verified_at: NONE
 		} RETURN AFTER;`,
 		{
 			...input,
-			user: extractRawId(input.user),
-			verificationCode: input.verificationCode ?? crypto.randomUUID().replace(/-/g, '')
+			user: ownerId
 		}
+	);
+	if (!website) return null;
+
+	let parsed: URL;
+	try {
+		parsed = new URL(input.url);
+	} catch {
+		return website;
+	}
+	const registrable = toRegistrableDomain(parsed.hostname) ?? parsed.hostname;
+	const verificationCode = input.verificationCode ?? crypto.randomUUID().replace(/-/g, '');
+	const verification = await adminOne<{ id: string }>(
+		`CREATE website_verifications CONTENT {
+			\`group\`: $group,
+			registrable_domain: $domain,
+			verification_code: $code,
+			verified_at: ${input.verifiedAt ? '<datetime>$verifiedAt' : 'NONE'}
+		} RETURN AFTER;`,
+		{
+			group,
+			domain: registrable,
+			code: verificationCode,
+			verifiedAt: input.verifiedAt ?? null
+		}
+	);
+	if (verification?.id) {
+		await adminOne(
+			'UPDATE websites SET verification_id = $verificationId WHERE id = $id;',
+			{ verificationId: verification.id, id: website.id }
+		);
+	}
+	return website;
+};
+
+export const markWebsiteVerified = async (websiteId: unknown) => {
+	const recordId = extractRawId(websiteId);
+	const record = await adminOne<{ verification_id?: string }>(
+		'SELECT verification_id FROM websites WHERE id = type::record($id) LIMIT 1;',
+		{ id: recordId }
+	);
+	if (!record?.verification_id) return null;
+	return adminOne<{ verified_at: unknown }>(
+		'UPDATE website_verifications SET verified_at = time::now() WHERE id = $id RETURN verified_at;',
+		{ id: record.verification_id }
+	);
+};
+
+export const setWebsiteVerificationCode = async (websiteId: unknown, code: string) => {
+	const recordId = extractRawId(websiteId);
+	const record = await adminOne<{ verification_id?: string }>(
+		'SELECT verification_id FROM websites WHERE id = type::record($id) LIMIT 1;',
+		{ id: recordId }
+	);
+	if (!record?.verification_id) return null;
+	return adminOne<{ verified_at: unknown }>(
+		'UPDATE website_verifications SET verification_code = $code, verified_at = time::now() WHERE id = $id RETURN verified_at;',
+		{ id: record.verification_id, code }
 	);
 };
 

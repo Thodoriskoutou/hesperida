@@ -48,8 +48,9 @@ export interface ApiWebsite {
 	users: ApiRecordId[];
 	description: string;
 	url: string;
-	verification_code: string;
+	verification_code?: string | null;
 	verified_at?: ApiDateTime | null;
+	verification_method?: 'dns' | 'file' | null;
 	created_at?: ApiDateTime;
 }
 

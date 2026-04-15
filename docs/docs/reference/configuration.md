@@ -33,12 +33,6 @@ This page lists the most important environment variables.
 | `AUTH_SIGNUP_ENABLED` | enable/disable public signup |
 | `COOKIE_MAX_AGE_SECONDS` | session cookie max age (default 1 hour) |
 
-## Verification
-
-| Variable | Purpose |
-| --- | --- |
-| `WEBSITE_VERIFICATION_TTL_SECONDS` | cache TTL for website verification checks |
-
 ## Notifications
 
 | Variable | Purpose |

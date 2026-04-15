@@ -74,7 +74,7 @@ DEFINE FIELD IF NOT EXISTS description ON websites TYPE string;
 DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::exists($value) AND $value.role != 'viewer';
 DEFINE FIELD IF NOT EXISTS url ON websites TYPE string ASSERT string::is_url($value);
 DEFINE FIELD IF NOT EXISTS users ON websites TYPE array<record<users>>;
-DEFINE FIELD IF NOT EXISTS verification_code ON websites TYPE string;
+DEFINE FIELD IF NOT EXISTS verification_id ON websites TYPE option<record<website_verifications>>;
 DEFINE FIELD IF NOT EXISTS verified_at ON websites TYPE option<datetime>;
 
 DEFINE INDEX IF NOT EXISTS url_idx ON websites FIELDS url UNIQUE;
@@ -83,6 +83,28 @@ DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
 DEFINE INDEX IF NOT EXISTS verified_at_websites_idx ON websites FIELDS verified_at;
 
 DEFINE EVENT IF NOT EXISTS website_delete ON websites WHEN $event = 'DELETE' THEN { DELETE jobs WHERE website = $before.id };
+
+-- ------------------------------
+-- TABLE: website_verifications
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS website_verifications TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR select, update WHERE
+		$auth.is_superuser = true OR
+		`group` = $auth.group,
+	FOR create WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' OR $auth.role = 'editor'),
+	FOR delete NONE;
+
+DEFINE FIELD IF NOT EXISTS created_at ON website_verifications TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS `group` ON website_verifications TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS registrable_domain ON website_verifications TYPE string ASSERT string::len($value) > 0;
+DEFINE FIELD IF NOT EXISTS verification_code ON website_verifications TYPE string;
+DEFINE FIELD IF NOT EXISTS verified_at ON website_verifications TYPE option<datetime>;
+DEFINE FIELD IF NOT EXISTS verification_method ON website_verifications TYPE option<string> ASSERT $value = NONE OR $value IN ['dns', 'file'];
+
+DEFINE INDEX IF NOT EXISTS website_verifications_group_domain_idx ON website_verifications FIELDS `group`, registrable_domain UNIQUE;
 
 
 -- ------------------------------
