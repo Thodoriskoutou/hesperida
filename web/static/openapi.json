@@ -569,7 +569,7 @@
           "Users"
         ],
         "summary": "Get user",
-        "description": "Admin-only",
+        "description": "Admin-only, except users can read their own record.",
         "security": [
           {
             "apiKeyAuth": [],
@@ -610,7 +610,7 @@
           "Users"
         ],
         "summary": "Update user",
-        "description": "Admin-only. Superuser can also update user group.",
+        "description": "Admin-only, except users can update their own basic profile fields.",
         "security": [
           {
             "apiKeyAuth": [],
