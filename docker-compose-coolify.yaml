@@ -144,7 +144,7 @@ services:
       - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
       - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
       - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
-      - "DASHBOARD_URL=${SERVICE_URL_HESPERIDA}"
+      - "DASHBOARD_URL=${SERVICE_URL_WEB}"
       - "DEBUG=${DEBUG:-false}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -157,7 +157,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      - SERVICE_URL_HESPERIDA_3000
+      - SERVICE_URL_WEB_3000
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -172,7 +172,7 @@ services:
       - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
       - "WP_PATH=${APPRISE_API_KEY:-/app/wappalyzer.db}"
       - "NOTIFICATION_BRAND_LOGO_URL=${NOTIFICATION_BRAND_LOGO_URL:-https://example.com/logo.png}"
-      - "DASHBOARD_URL=${SERVICE_URL_HESPERIDA}"
+      - "DASHBOARD_URL=${SERVICE_URL_WEB}"
       - "SMTP_HOST=${SMTP_HOST:-}"
       - "SMTP_PORT=${SMTP_PORT:-587}"
       - "SMTP_USER=${SMTP_USER:-}"
