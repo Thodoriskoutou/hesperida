@@ -214,7 +214,7 @@ If I decide to spin up a SaaS, I will write a proprietary kubernetes orchestrato
 
 ### I want to change my user group.
 
-Only superusers can do that. As a non-superuser all you can do is delete or transfer the ownership of any websites you own and delete your account. If you want to start a new group sign up (provided sign ups are enabled), else ask a user to invite you.
+Only superusers can do that. As a non-superuser all you can do is transfer the ownership of any websites you own and delete your account. If you want to start a new group sign up (provided sign ups are enabled), else ask a user to invite you.
 
 ### Is this a vibe coded project?
 
@@ -226,11 +226,7 @@ Open an [issue](https://github.com/rallisf1/hesperida/issues/new) and we'll see.
 
 ### How can I contribute?
 
-1. Open an Issue
-2. Fork the repo
-3. Do your changes
-4. Test them
-5. Submit a PR that closes your issue
+See the [contribution guide](./.github/CONTRIBUTING.md).
 
 ## License
 
