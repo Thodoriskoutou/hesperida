@@ -13,6 +13,7 @@ export const parseWebsiteNotificationEventsForm = (
 ): ApiWebsiteNotificationEvents | null => {
 	const seo = parseOptionalThreshold(formData.get('SEO_SCORE_BELOW'));
 	const stress = parseOptionalThreshold(formData.get('STRESS_SCORE_BELOW'));
+	const mail = parseOptionalThreshold(formData.get('MAIL_SCORE_BELOW'));
 	const wcag = parseOptionalThreshold(formData.get('WCAG_SCORE_BELOW'));
 	const security = parseOptionalThreshold(formData.get('SECURITY_SCORE_BELOW'));
 	if ([seo, stress, wcag, security].some((value) => Number.isNaN(value))) {
@@ -24,6 +25,7 @@ export const parseWebsiteNotificationEventsForm = (
 		JOB_FAILED: formData.get('JOB_FAILED') === 'on',
 		SEO_SCORE_BELOW: seo,
 		STRESS_SCORE_BELOW: stress,
+		MAIL_SCORE_BELOW: mail,
 		WCAG_SCORE_BELOW: wcag,
 		SECURITY_SCORE_BELOW: security
 	};

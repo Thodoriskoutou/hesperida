@@ -1,4 +1,4 @@
-export type ReportTool = 'seo' | 'stress' | 'wcag' | 'security';
+export type ReportTool = 'seo' | 'stress' | 'wcag' | 'security' | 'mail';
 export type ReportRowStatus = 'pass' | 'warn' | 'fail' | 'info';
 export type ReportRowSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
@@ -232,6 +232,10 @@ const formatMs = (value: number | null): string =>
 const formatPercent = (value: number | null): string =>
 	value === null ? 'n/a' : `${(value * 100).toFixed(2)}%`;
 
+const normalizeMailRows = (raw: unknown): NormalizedReportRow[] => {
+	// TODO implement this
+}
+
 const normalizeStressRows = (raw: unknown): NormalizedReportRow[] => {
 	const source = asRecord(raw);
 	const report = asRecord(source.report);
@@ -389,7 +393,9 @@ export const normalizeToolRows = (
 				? normalizeSecurityRows(raw)
 				: tool === 'wcag'
 					? normalizeWcagRows(raw, options)
-					: normalizeStressRows(raw);
+						: tool === 'stress' 
+							? normalizeStressRows(raw)
+							: normalizeMailRows(raw);
 
 	return sortNormalizedRows(tool, rows);
 };

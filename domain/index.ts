@@ -16,6 +16,9 @@ const host = inputTarget.startsWith('http://') || inputTarget.startsWith('https:
     : inputTarget;
 
 const domain = toRegistrableDomain(host);
+
+if (!domain) throw new Error(`Could not parse domain!`);
+
 const CACHE_FILE = '/rdap-cache.json';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PASSIVE_SUBDOMAIN_LIMIT = 200;

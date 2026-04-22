@@ -3,12 +3,14 @@ import type { WebsiteNotificationEvents } from '$lib/types';
 type EventThresholdKey =
 	| 'SEO_SCORE_BELOW'
 	| 'STRESS_SCORE_BELOW'
+	| 'MAIL_SCORE_BELOW'
 	| 'WCAG_SCORE_BELOW'
 	| 'SECURITY_SCORE_BELOW';
 
 export const WEBSITE_NOTIFICATION_THRESHOLD_KEYS: EventThresholdKey[] = [
 	'SEO_SCORE_BELOW',
 	'STRESS_SCORE_BELOW',
+	'MAIL_SCORE_BELOW',
 	'WCAG_SCORE_BELOW',
 	'SECURITY_SCORE_BELOW'
 ];
@@ -18,6 +20,7 @@ export const defaultWebsiteNotificationEvents = (): WebsiteNotificationEvents =>
 	JOB_FAILED: true,
 	SEO_SCORE_BELOW: null,
 	STRESS_SCORE_BELOW: null,
+	MAIL_SCORE_BELOW: null,
 	WCAG_SCORE_BELOW: null,
 	SECURITY_SCORE_BELOW: null
 });
@@ -44,6 +47,7 @@ export const parseWebsiteNotificationEvents = (
 		JOB_FAILED: typeof record.JOB_FAILED === 'boolean' ? record.JOB_FAILED : base.JOB_FAILED,
 		SEO_SCORE_BELOW: base.SEO_SCORE_BELOW,
 		STRESS_SCORE_BELOW: base.STRESS_SCORE_BELOW,
+		MAIL_SCORE_BELOW: base.MAIL_SCORE_BELOW,
 		WCAG_SCORE_BELOW: base.WCAG_SCORE_BELOW,
 		SECURITY_SCORE_BELOW: base.SECURITY_SCORE_BELOW
 	};

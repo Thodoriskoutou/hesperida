@@ -26,6 +26,7 @@ export interface ApiWebsiteNotificationEvents {
 	JOB_FAILED: boolean;
 	SEO_SCORE_BELOW: number | null;
 	STRESS_SCORE_BELOW: number | null;
+	MAIL_SCORE_BELOW: number | null;
 	WCAG_SCORE_BELOW: number | null;
 	SECURITY_SCORE_BELOW: number | null;
 }
@@ -91,6 +92,7 @@ export interface ApiJob {
 	domain?: ApiRecordId | null;
 	security?: ApiRecordId | null;
 	stress?: ApiRecordId | null;
+	mail?: ApiRecordId | null;
 	created_at?: ApiDateTime;
 }
 
@@ -235,6 +237,7 @@ export interface ApiCommonScoreResult {
 
 export type ApiSeoResult = ApiCommonScoreResult;
 export type ApiStressResult = ApiCommonScoreResult;
+export type ApiMailResult = ApiCommonScoreResult;
 export type ApiSecurityResult = ApiCommonScoreResult;
 
 export interface ApiWcagResult extends ApiCommonScoreResult {
@@ -242,7 +245,7 @@ export interface ApiWcagResult extends ApiCommonScoreResult {
 	screenshot?: string;
 }
 
-export interface ApiJobResults extends Omit<ApiJob, 'website' | 'probe' | 'seo' | 'ssl' | 'whois' | 'wcag' | 'domain' | 'security' | 'stress'> {
+export interface ApiJobResults extends Omit<ApiJob, 'website' | 'probe' | 'seo' | 'ssl' | 'whois' | 'wcag' | 'domain' | 'security' | 'stress' | 'mail'> {
 	website: ApiWebsite | ApiRecordId;
 	probe?: ApiProbeResult | null;
 	seo?: ApiSeoResult | null;
@@ -252,6 +255,7 @@ export interface ApiJobResults extends Omit<ApiJob, 'website' | 'probe' | 'seo' 
 	domain?: ApiDomainResult | null;
 	security?: ApiSecurityResult | null;
 	stress?: ApiStressResult | null;
+	mail?: ApiMailResult | null;
 }
 
 export interface ApiAuthData {

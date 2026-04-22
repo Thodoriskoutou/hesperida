@@ -85,6 +85,7 @@ export const resetData = async (): Promise<void> => {
 				DELETE domain_results;
 				DELETE security_results;
 				DELETE stress_results;
+				DELETE mail_results;
 			`)
 			.collect();
 	});

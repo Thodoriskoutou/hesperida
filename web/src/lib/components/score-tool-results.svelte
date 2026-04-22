@@ -6,7 +6,7 @@
 	import type { Tool } from '$lib/types';
     import * as Select from './ui/select';
 
-	type SupportedTool = 'seo' | 'stress' | 'wcag' | 'security';
+	type SupportedTool = 'seo' | 'stress' | 'wcag' | 'security' | 'mail';
 	type RowStatus = 'pass' | 'warn' | 'fail' | 'info';
 	type RowSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 	type StatusFilter = 'all' | RowStatus;
@@ -82,7 +82,7 @@
 			.trim();
 
 	const isSupportedTool = (value: Tool): value is SupportedTool =>
-		value === 'seo' || value === 'stress' || value === 'wcag' || value === 'security';
+		value === 'seo' || value === 'stress' || value === 'wcag' || value === 'security' || value === 'mail';
 
 	const mapSeoStatus = (value: string): RowStatus => {
 		switch (value.toLowerCase()) {
@@ -272,6 +272,10 @@
 		return 'pass';
 	};
 
+	const normalizeMail = (raw: unknown): NormalizedRow[] => {
+		// TODO implement this
+	}
+
 	const normalizeStress = (raw: unknown): NormalizedRow[] => {
 		const source = asRecord(raw);
 		const report = asRecord(source.report);
@@ -399,6 +403,8 @@
 				return normalizeWcag(raw);
 			case 'stress':
 				return normalizeStress(raw);
+			case 'mail':
+				return normalizeMail(raw);
 			default:
 				return [];
 		}

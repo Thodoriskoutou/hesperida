@@ -20,6 +20,9 @@
 	let stressScoreBelow = $derived(
 		data.link.events.STRESS_SCORE_BELOW === null ? '' : String(data.link.events.STRESS_SCORE_BELOW)
 	);
+	let mailScoreBelow = $derived(
+		data.link.events.MAIL_SCORE_BELOW === null ? '' : String(data.link.events.MAIL_SCORE_BELOW)
+	);
 	let wcagScoreBelow = $derived(
 		data.link.events.WCAG_SCORE_BELOW === null ? '' : String(data.link.events.WCAG_SCORE_BELOW)
 	);
@@ -119,6 +122,18 @@
 					/>
 				</div>
 				<div class="space-y-1">
+					<Field.Label for="MAIL_SCORE_BELOW">Mail score below</Field.Label>
+					<Input
+						id="MAIL_SCORE_BELOW"
+						type="number"
+						min="0"
+						max="100"
+						step="0.1"
+						bind:value={mailScoreBelow}
+						disabled={!jobCompleted}
+					/>
+				</div>
+				<div class="space-y-1">
 					<Field.Label for="WCAG_SCORE_BELOW">WCAG score below</Field.Label>
 					<Input
 						id="WCAG_SCORE_BELOW"
@@ -147,6 +162,7 @@
 
 		<input type="hidden" name="SEO_SCORE_BELOW" value={seoScoreBelow} />
 		<input type="hidden" name="STRESS_SCORE_BELOW" value={stressScoreBelow} />
+		<input type="hidden" name="MAIL_SCORE_BELOW" value={mailScoreBelow} />
 		<input type="hidden" name="WCAG_SCORE_BELOW" value={wcagScoreBelow} />
 		<input type="hidden" name="SECURITY_SCORE_BELOW" value={securityScoreBelow} />
 

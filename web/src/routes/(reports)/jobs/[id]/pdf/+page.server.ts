@@ -93,6 +93,7 @@ const buildPainPoints = (params: {
 	wcagRows: NormalizedReportRow[];
 	seoRows: NormalizedReportRow[];
 	stressRows: NormalizedReportRow[];
+	mailRows: NormalizedReportRow[];
 }): PainPoint[] => {
 	const points: PainPoint[] = [];
 
@@ -150,6 +151,10 @@ const buildPainPoints = (params: {
 		});
 	}
 
+	for (const row of params.mailRows) {
+		// TODO calc mail points
+	}
+
 	const unique = new Map<string, PainPoint>();
 	for (const point of points) {
 		const key = `${point.title}::${point.detail}`;
@@ -170,6 +175,7 @@ const buildTldr = (params: {
 	securityRows: NormalizedReportRow[];
 	wcagRows: NormalizedReportRow[];
 	stressRows: NormalizedReportRow[];
+	mailRows: NormalizedReportRow[];
 	painPoints: PainPoint[];
 }): string[] => {
 	const lines: string[] = [];
@@ -198,6 +204,8 @@ const buildTldr = (params: {
 		lines.push(`Observed performance baseline: ${p95.value} at p95 latency during stress testing.`);
 	}
 
+	// TODO add mail tldr
+
 	if (params.painPoints.length > 0) {
 		lines.push(`Top immediate priority: ${params.painPoints[0]?.title}.`);
 	}
@@ -213,7 +221,7 @@ export const load: PageServerLoad = async (event) => {
 		const jobId = new RecordId('jobs', jobRouteId);
 		const job = await queryOne<Record<string, unknown>>(
 			db,
-			"SELECT * FROM jobs WHERE id = $id AND status = 'completed' LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress;",
+			"SELECT * FROM jobs WHERE id = $id AND status = 'completed' LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress, mail;",
 			{ id: jobId }
 		);
 
@@ -225,6 +233,7 @@ export const load: PageServerLoad = async (event) => {
 		const seo = asRecord(jobPlain.seo);
 		const security = asRecord(jobPlain.security);
 		const stress = asRecord(jobPlain.stress);
+		const mail = asRecord(jobPlain.mail);
 		const probe = asRecord(jobPlain.probe);
 		const ssl = asRecord(jobPlain.ssl);
 		const domain = asRecord(jobPlain.domain);
@@ -250,6 +259,7 @@ export const load: PageServerLoad = async (event) => {
 		const seoRows = normalizeToolRows('seo', seo.raw);
 		const securityRows = normalizeToolRows('security', security.raw);
 		const stressRows = stress.raw ? normalizeToolRows('stress', stress.raw) : [];
+		const mailRows = mail.raw ? normalizeToolRows('mail', mail.raw) : [];
 		const allWcagRows = wcagByDevice.flatMap((item) => item.rows);
 
 		const wcagAverageScore =
@@ -285,6 +295,15 @@ export const load: PageServerLoad = async (event) => {
 				errors: asNumber(stress.errors)
 			});
 		}
+		if (Object.keys(mail).length) {
+			scoreCards.push({
+				tool: 'Mail',
+				score: asNumber(mail.score),
+				passes: asNumber(mail.passes),
+				warnings: asNumber(mail.warnings),
+				errors: asNumber(mail.errors)
+			});
+		}
 		if (wcagAverageScore !== null) {
 			scoreCards.push({
 				tool: 'WCAG (avg)',
@@ -304,7 +323,8 @@ export const load: PageServerLoad = async (event) => {
 			securityRows,
 			wcagRows: allWcagRows,
 			seoRows,
-			stressRows
+			stressRows,
+			mailRows
 		});
 
 		const website = asRecord(jobPlain.website);
@@ -324,6 +344,7 @@ export const load: PageServerLoad = async (event) => {
 			securityRows,
 			wcagRows: allWcagRows,
 			stressRows,
+			mailRows,
 			painPoints
 		});
 
@@ -378,6 +399,7 @@ export const load: PageServerLoad = async (event) => {
 				seo: seoRows,
 				security: securityRows,
 				stress: stressRows,
+				mail: mailRows,
 				wcag_by_device: wcagByDevice
 			},
 			tech_summary: {

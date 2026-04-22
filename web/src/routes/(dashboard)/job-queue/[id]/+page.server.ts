@@ -6,7 +6,7 @@ import { formatDate } from '$lib/utils';
 import type { Tool } from '$lib/types';
 import type { ApiJob, ApiQueueTask, ApiWebsite, ApiWcagResult } from '$lib/types/api';
 
-const scoreTools = new Set<Tool>(['seo', 'wcag', 'security', 'stress']);
+const scoreTools = new Set<Tool>(['seo', 'wcag', 'security', 'stress', 'mail']);
 
 export const load: PageServerLoad = async (event) => {
 	const data = await callDashboardApi<{ task: ApiQueueTask }>(

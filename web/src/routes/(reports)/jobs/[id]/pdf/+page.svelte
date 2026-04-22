@@ -58,6 +58,7 @@
 			seo: NormalizedReportRow[];
 			security: NormalizedReportRow[];
 			stress: NormalizedReportRow[];
+			mail: NormalizedReportRow[];
 			wcag_by_device: WcagDeviceSection[];
 		};
 		tech_summary: {
@@ -633,6 +634,43 @@
 				</Table.Header>
 				<Table.Body>
 					{#each report.tables.stress as row (row.id)}
+						<Table.Row>
+							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
+							<Table.Cell>{row.group}</Table.Cell>
+							<Table.Cell>{row.check}</Table.Cell>
+							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break-all">
+								<div>{row.summary}</div>
+								{#if toDetailLines(row.details).length}
+									<ul class="details">
+										{#each toDetailLines(row.details) as detail (`${row.id}-${detail}`)}
+											<li>{detail}</li>
+										{/each}
+									</ul>
+								{/if}
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</td></tr>
+	{/if}
+	<!-- TODO check that the table structure aligns with the mail row results -->
+	{#if report.tables.mail.length > 0}
+		<tr class="section page-break"><td>
+			<h2>Mail Health Findings</h2>
+			<Table.Root class="overflow-x-clip">
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Status</Table.Head>
+						<Table.Head>Group</Table.Head>
+						<Table.Head>Check</Table.Head>
+						<Table.Head>Value</Table.Head>
+						<Table.Head>Summary</Table.Head>
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each report.tables.mail as row (row.id)}
 						<Table.Row>
 							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
 							<Table.Cell>{row.group}</Table.Cell>

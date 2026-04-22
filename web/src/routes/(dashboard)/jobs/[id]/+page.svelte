@@ -19,7 +19,10 @@
 		ApiStressResult,
 		ApiWcagResult,
 		ApiWhoisResult,
-		ApiWebsite
+		ApiWebsite,
+
+    ApiMailResult
+
 	} from '$lib/types/api';
 	import ThumbsDownIcon from "@lucide/svelte/icons/thumbs-down";
 	import ThumbsUpIcon from "@lucide/svelte/icons/thumbs-up";
@@ -102,6 +105,13 @@
 				score: (job.security as ApiSecurityResult).score
 			});
 		}
+		if(job.mail) {
+			results.push({
+				tool: 'mail',
+				label: 'mail',
+				score: (job.mail as ApiMailResult).score
+			});
+		}
 		return results;
 	});
 
@@ -112,6 +122,7 @@
 		if (scoreRow.tool === 'seo') return (job.seo as ApiSeoResult) ?? null;
 		if (scoreRow.tool === 'security') return (job.security as ApiSecurityResult) ?? null;
 		if (scoreRow.tool === 'stress') return (job.stress as ApiStressResult) ?? null;
+		if (scoreRow.tool === 'mail') return (job.mail as ApiMailResult) ?? null;
 		return null;
 	};
 

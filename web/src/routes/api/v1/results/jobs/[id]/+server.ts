@@ -37,7 +37,7 @@ export const GET: RequestHandler = async (event) => {
 
 	const jobId = new RecordId('jobs', event.params.id);
 
-	const sql = 'SELECT * FROM jobs WHERE id = $id LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress;';
+	const sql = 'SELECT * FROM jobs WHERE id = $id LIMIT 1 FETCH website, probe, seo, ssl, whois, wcag, domain, security, stress, mail;';
 	const job: Job | null = isSuperuser(auth.user)
 		? await withAdminDb((db) => queryOne(db, sql, { id: jobId }))
 		: await withUserDb(auth.token, (db) => queryOne(db, sql, { id: jobId }));

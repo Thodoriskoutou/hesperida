@@ -1,15 +1,16 @@
 {
-  "name": "hesperida-seo",
-  "module": "index.js",
-  "type": "module",
-  "private": true,
+  "name": "hesperida-mail",
+  "module": "index.ts",
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
+  "private": true,
+  "type": "module",
   "dependencies": {
+    "rdapper": "^0.13.0",
     "surrealdb": "^2.0.3"
   }
 }

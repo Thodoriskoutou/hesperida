@@ -67,16 +67,6 @@ You can change both later
 2. `docker compose pull` to update all the docker images
 3. `docker compose --profile aio up -d` to start
 
-## How to run the dev environment
-
-1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git && cd hesperida`
-2. `cp .env.example .env` and edit it with your information. Use `NODE_ENV=development`.
-3. create a shortcut to the .env for the sveltekit project: `ln -s .env web/.env`
-3. Start it up `docker compose --profile dev up`
-4. (optional) you can pre-build the tools containers using `docker compose --profile tools build`. If you skip this the first run will take a few minutes.
-5. In another terminal run the sveltekit project with `cd web && bun install && bun run dev`
-6. Open `http://localhost:5173` (or the port indicated in the terminal output)
-
 ## Known bugs
 
 - Task execution reliability still needs tuning under heavy concurrency. Known culprits:

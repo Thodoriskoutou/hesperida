@@ -38,7 +38,7 @@ const fetchResult = async (db: any, value: unknown): Promise<unknown> => {
  *         required: true
  *         schema:
  *           type: string
- *           enum: [probe, seo, ssl, wcag, whois, domain, security, stress]
+ *           enum: [probe, seo, ssl, wcag, whois, domain, security, stress, mail]
  *     responses:
  *       200:
  *         description: Tool result

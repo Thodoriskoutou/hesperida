@@ -26,6 +26,7 @@ This document is the practical workflow for making safe changes in this monorepo
 2. Docker with compose
 3. Node.js version ^22.22.1
 4. Bun version ^1.3.10
+5. pnpm
 
 ## Local Setup
 
@@ -39,11 +40,29 @@ cd hesperida
 cp .env.example .env
 ln -s .env web/.env
 ```
-3. Start infra:
+3. Build tool dependencies
 ```bash
-docker compose --profile dev up
+cd mail
+git clone https://github.com/wraps-team/wraps.git wraps
+cd wraps
+pnpm install --frozen-lockfile
+pnpm --filter @wraps/core build
+pnpm --filter @wraps/email-check build
+
+cd ../seo
+git clone https://github.com/seo-skills/seo-audit-skill.git seomator
+cd seomator
+npm install && npm run build
 ```
-4. Run web app:
+4. Build tools:
+```bash
+docker compose -f docker-compose.dev.yaml --profile tools build
+```
+5. Start infra:
+```bash
+docker compose -f docker-compose.dev.yaml --profile dev up
+```
+6. Run web app:
 ```bash
 cd web
 bun install

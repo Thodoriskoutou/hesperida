@@ -166,6 +166,7 @@ DEFINE FIELD IF NOT EXISTS events.JOB_COMPLETED ON website_notifications TYPE bo
 DEFINE FIELD IF NOT EXISTS events.JOB_FAILED ON website_notifications TYPE bool DEFAULT true;
 DEFINE FIELD IF NOT EXISTS events.SEO_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
 DEFINE FIELD IF NOT EXISTS events.STRESS_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
+DEFINE FIELD IF NOT EXISTS events.MAIL_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
 DEFINE FIELD IF NOT EXISTS events.WCAG_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
 DEFINE FIELD IF NOT EXISTS events.SECURITY_SCORE_BELOW ON website_notifications TYPE number | NULL DEFAULT NONE;
 
@@ -215,7 +216,7 @@ DEFINE TABLE IF NOT EXISTS jobs TYPE NORMAL SCHEMAFULL PERMISSIONS
 DEFINE FIELD IF NOT EXISTS created_at ON jobs TYPE datetime DEFAULT time::now() READONLY;
 DEFINE FIELD OVERWRITE options ON jobs TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE status ON jobs TYPE string DEFAULT 'pending' ASSERT ['pending', 'processing', 'completed', 'failed'].includes($value);
-DEFINE FIELD OVERWRITE types ON jobs TYPE array<string> DEFAULT ['probe'] ASSERT !array::is_empty(array::intersect($value, ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress']));
+DEFINE FIELD OVERWRITE types ON jobs TYPE array<string> DEFAULT ['probe'] ASSERT !array::is_empty(array::intersect($value, ['probe', 'seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress', 'mail']));
 DEFINE FIELD IF NOT EXISTS types.* ON jobs TYPE string;
 DEFINE FIELD IF NOT EXISTS website ON jobs TYPE record<websites> ASSERT record::exists($value);
 DEFINE FIELD IF NOT EXISTS probe ON jobs TYPE option<record<probe_results>>;
@@ -226,6 +227,7 @@ DEFINE FIELD IF NOT EXISTS wcag ON jobs TYPE option<array<record<wcag_results>>>
 DEFINE FIELD IF NOT EXISTS domain ON jobs TYPE option<record<domain_results>>;
 DEFINE FIELD IF NOT EXISTS security ON jobs TYPE option<record<security_results>>;
 DEFINE FIELD IF NOT EXISTS stress ON jobs TYPE option<record<stress_results>>;
+DEFINE FIELD IF NOT EXISTS mail ON jobs TYPE option<record<mail_results>>;
 
 DEFINE INDEX IF NOT EXISTS job_date ON jobs FIELDS created_at;
 DEFINE INDEX IF NOT EXISTS job_status_idx ON jobs FIELDS status;
@@ -248,6 +250,7 @@ DEFINE EVENT OVERWRITE job_deletion ON jobs WHEN $event = 'DELETE' THEN {
   IF $before.domain { (DELETE $before.domain) };
   IF $before.security { (DELETE $before.security) };
   IF $before.stress { (DELETE $before.stress) };
+  IF $before.mail { (DELETE $before.mail) };
   IF type::file('screenshots', record::id($before.id) + '.png').exists() { type::file('screenshots', record::id($before.id) + '.png').delete() };
   DELETE FROM job_queue WHERE job = $before.id;
   DELETE FROM schedule WHERE job = $before.id;
@@ -265,7 +268,8 @@ DEFINE EVENT IF NOT EXISTS job_completion_check ON jobs WHEN $event = 'UPDATE' A
         ('whois' IN $after.types AND $after.whois = NONE) OR
         ('domain' IN $after.types AND $after.domain = NONE) OR
         ('security' IN $after.types AND $after.security = NONE) OR
-        ('stress' IN $after.types AND $after.stress = NONE)
+        ('stress' IN $after.types AND $after.stress = NONE) OR
+        ('mail' IN $after.types AND $after.mail = NONE)
     );
     IF !$is_incomplete { (UPDATE $after.id SET status = 'completed') };
 };
@@ -288,7 +292,7 @@ DEFINE FIELD IF NOT EXISTS attempts ON job_queue TYPE int DEFAULT 0;
 DEFINE FIELD IF NOT EXISTS job ON job_queue TYPE record<jobs>;
 DEFINE FIELD IF NOT EXISTS next_run_at ON job_queue TYPE datetime DEFAULT time::now();
 DEFINE FIELD OVERWRITE options ON job_queue TYPE option<object> FLEXIBLE;
-DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress'];
+DEFINE FIELD OVERWRITE type ON job_queue TYPE string ASSERT $value IN ['seo', 'ssl', 'wcag', 'whois', 'domain', 'security', 'stress', 'mail'];
 DEFINE FIELD OVERWRITE status ON job_queue TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'waiting', 'processing', 'completed', 'failed', 'canceled'];
 DEFINE FIELD OVERWRITE target ON job_queue TYPE option<string>;
 
@@ -337,6 +341,32 @@ DEFINE FIELD IF NOT EXISTS wp_themes.* ON probe_results TYPE option<string>;
 
 DEFINE EVENT IF NOT EXISTS probe_completion ON probe_results WHEN $event = 'CREATE' THEN {
 	UPDATE jobs SET probe = type::record('probe_results', $after.id) WHERE id = $after.job;
+};
+
+
+-- ------------------------------
+-- TABLE: mail_results
+-- ------------------------------
+
+DEFINE TABLE IF NOT EXISTS mail_results TYPE NORMAL SCHEMAFULL PERMISSIONS
+	FOR create, update, delete NONE,
+	FOR select WHERE
+		$auth.is_superuser = true OR
+		($auth.role = 'admin' AND job.website.owner.group = $auth.group) OR
+		job.website.owner = $auth.id OR
+		$auth.id IN job.website.users;
+
+DEFINE FIELD IF NOT EXISTS created_at ON mail_results TYPE datetime DEFAULT time::now() READONLY;
+DEFINE FIELD IF NOT EXISTS errors ON mail_results TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS job ON mail_results TYPE record<jobs> ASSERT record::exists($value);
+DEFINE FIELD IF NOT EXISTS passes ON mail_results TYPE int DEFAULT 0;
+DEFINE FIELD IF NOT EXISTS raw ON mail_results TYPE object FLEXIBLE;
+DEFINE FIELD IF NOT EXISTS score ON mail_results TYPE number;
+DEFINE FIELD IF NOT EXISTS warnings ON mail_results TYPE int DEFAULT 0;
+
+DEFINE EVENT OVERWRITE mail_completion ON mail_results WHEN $event = 'CREATE' THEN {
+	UPDATE jobs SET mail = type::record('mail_results', $after.id) WHERE id = $after.job;
+	UPDATE job_queue SET status = 'completed' WHERE job = $after.job AND type = 'mail';
 };
 
 

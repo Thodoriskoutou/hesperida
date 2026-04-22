@@ -12,6 +12,7 @@ docs
 web/build
 docs/build
 seo/seomator
+mail/wraps
 
 data/*
 !data/rdap-cache.json

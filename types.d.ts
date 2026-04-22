@@ -1,13 +1,14 @@
 // @ts-expect-error
 import {type DateTime, RecordId} from 'surrealdb'; // it will be imported where this is loaded
 
-export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress';
+export type Tool = 'probe' | 'seo' | 'ssl' | 'wcag' | 'whois' | 'domain' | 'security' | 'stress' | 'mail';
 
 export interface WebsiteNotificationEvents {
 	JOB_COMPLETED: boolean;
 	JOB_FAILED: boolean;
 	SEO_SCORE_BELOW: number | null;
 	STRESS_SCORE_BELOW: number | null;
+	MAIL_SCORE_BELOW: number | null;
 	WCAG_SCORE_BELOW: number | null;
 	SECURITY_SCORE_BELOW: number | null;
 }
@@ -56,6 +57,7 @@ export interface Job {
     domain?: RecordId<'domain_results'>;
     security?: RecordId<'security_results'>;
     stress?: RecordId<'stress_results'>;
+    mail?: RecordId<'mail_results'>;
     created_at?: DateTime;
 }
 
@@ -225,6 +227,10 @@ export interface WCAG extends CommonResults {
     id?: RecordId<'wcag_results'>;
     device: string;
     screenshot?: string;
+}
+
+export interface Mail extends CommonResults {
+    id?: RecordId<'mail_results'>;
 }
 
 export type ApiEnvelope =
