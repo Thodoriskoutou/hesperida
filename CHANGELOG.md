@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+
+## [0.9.2] - 2026-04-22
+
+### Changed
+
+- database initialization happens in web app init instead of request handle
+- web app healthcheck includes database check
+- optimize github workflow images build
+
+### Fixed
+
+- orchestrator enters a restart loop until the first web request is made
+
 ## [0.9.1] - 2026-04-21
 
 ### Fixed

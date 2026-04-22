@@ -133,7 +133,7 @@ services:
     restart: always
     profiles: ["backend", "aio"]
     depends_on:
-      db:
+      web:
         condition: service_healthy
     environment:
       - "SURREAL_USER=${SURREAL_USER:-root}"

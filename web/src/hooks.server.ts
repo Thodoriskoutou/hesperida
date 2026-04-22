@@ -1,4 +1,4 @@
-import { redirect, type Handle } from '@sveltejs/kit';
+import { redirect, type Handle, type ServerInit } from '@sveltejs/kit';
 import { config, getMissingRequiredEnv } from '$lib/server/config';
 import {
 	clearSessionCookies,
@@ -26,10 +26,14 @@ const isPublicDashboardRoute = (pathname: string): boolean =>
 	isStaticAssetRoute(pathname) ||
 	isPublicPdfReportRoute(pathname);
 let configValidated = false;
-let dbInitialized = false;
 
-// Best-effort startup warmup for local playwright devices cache.
-warmPlaywrightDevicesCache();
+export const init: ServerInit = async () => {
+	// Best-effort startup warmup for local playwright devices cache.
+	warmPlaywrightDevicesCache();
+	if (config.appMode === 'api' || config.appMode === 'both') {
+		await ensureDbInit();
+	}
+};
 
 const jsonError = (requestId: string, status: number, code: string, message: string): Response => {
 	return Response.json(
@@ -49,11 +53,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			throw new Error(`Missing required environment variables for APP_MODE=${config.appMode}: ${missingEnv.join(', ')}`);
 		}
 		configValidated = true;
-	}
-
-	if (!dbInitialized && (config.appMode === 'api' || config.appMode === 'both')) {
-		await ensureDbInit();
-		dbInitialized = true;
 	}
 
 	const started = Date.now();

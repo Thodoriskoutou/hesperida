@@ -1,4 +1,4 @@
-import { handle } from '../../hooks.server';
+import { handle, init } from '../../hooks.server';
 
 import * as authSignup from '../../routes/api/v1/auth/signup/+server';
 import * as authSignin from '../../routes/api/v1/auth/signin/+server';
@@ -73,6 +73,26 @@ const routes: RouteEntry[] = [
 	{ regex: /^\/api\/v1\/results\/jobs\/(?<id>[^/]+)\/(?<tool>[^/]+)$/, module: resultsByTool },
 	{ regex: /^\/api\/v1\/results\/jobs\/(?<id>[^/]+)$/, module: resultsByJob }
 ];
+
+let hooksInitialized = false;
+let hooksInitPromise: Promise<void> | null = null;
+
+const ensureHooksInit = async (): Promise<void> => {
+	if (hooksInitialized) {
+		return;
+	}
+
+	if (!hooksInitPromise) {
+		hooksInitPromise = (async () => {
+			await init?.();
+			hooksInitialized = true;
+		})().finally(() => {
+			hooksInitPromise = null;
+		});
+	}
+
+	await hooksInitPromise;
+};
 
 class CookieState {
 	public readonly values = new Map<string, string>();
@@ -160,6 +180,8 @@ export class ApiTestClient {
 	}
 
 	public async call(options: ApiCallOptions): Promise<{ response: Response; json: any }> {
+		await ensureHooksInit();
+
 		const method = options.method ?? 'GET';
 		const url = new URL(`http://local.test${options.path}`);
 		const headers = buildHeaders({

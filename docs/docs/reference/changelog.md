@@ -7,6 +7,18 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.9.2] - 2026-04-22
+
+### Changed
+
+- database initialization happens in web app init instead of request handle
+- web app healthcheck includes database check
+- optimize github workflow images build
+
+### Fixed
+
+- orchestrator enters a restart loop until the first web request is made
+
 ## [0.9.1] - 2026-04-21
 
 ### Fixed
