@@ -5,63 +5,73 @@ sidebar_position: 1
 
 # Deployment Notes
 
-## Topology Choices
+This page follows the deployment flow in the repository `README.md`.
 
-### All-in-one
+## Quick Start
 
-Use profile `aio` for single-host deployments.
+1. Clone the repository:
 
 ```bash
+git clone https://github.com/rallisf1/hesperida.git
+cd hesperida
+```
+
+2. Create your environment file:
+
+```bash
+cp .env.example .env
+```
+
+3. Pull worker images:
+
+```bash
+docker compose --profile tools pull
+```
+
+4. Start the stack:
+- Self-hosted DB:
+
+  ```bash
+  docker compose --profile aio up -d
+  ```
+
+- External SurrealDB / SurrealDB SaaS:
+
+  ```bash
+  docker compose --profile backend up -d
+  ```
+
+5. Open the dashboard at `http://localhost:3000` (or your configured host/port).
+
+## Bootstrap Superuser
+
+- Email: `hesperida@local.me`
+- Password: value of `SURREAL_PASS`
+
+## Updating
+
+For all-in-one (`aio`) deployments:
+
+```bash
+docker compose --profile aio down
+docker compose --profile aio pull
+docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 
-### Development Runtime
+For `backend` deployments, use the same flow but replace `aio` with `backend` where applicable.
 
-Use profile `dev` for local backend development (`db` + `db-init` + `orchestrator`).
+## Runtime Notes
 
-```bash
-docker compose --profile dev up -d
-```
+- `web` and `orchestrator` are required in all active deployments.
+- `db` is required only when not using external SurrealDB.
+- `apprise` and `pdf` are part of backend profiles for notifications and PDF export.
+- `tools` profile is used to pull/build scan worker images; those containers are not long-running services.
 
-### Split DB / Backend
+## Environment Highlights
 
-Use `database` and `backend` profiles when SurrealDB is hosted separately.
+Start from `.env.example` and configure at least:
 
-```bash
-docker compose run --rm db-init
-docker compose --profile backend up -d
-```
-
-## Required Runtime Services
-
-- `web`
-- `orchestrator`
-- `db` (or external SurrealDB)
-
-Optional but recommended:
-
-- `apprise` (notification delivery)
-- `pdf` (Gotenberg)
-
-## Network Model
-
-No `network_mode: host` is required.
-
-- Orchestrator attaches spawned tool containers to its active Docker network.
-- Services communicate using compose hostnames (for example `db`, `pdf`, `apprise`).
-
-## Persistence
-
-- SurrealDB data: volume-backed (`data/`)
-- Screenshots/results metadata: persisted in DB/file references
-
-## Environment Management
-
-Start from `.env.example` and set:
-
-- database credentials and address
+- `SURREAL_*` connection/auth values
 - `WEB_API_KEY`
-- auth and signup flags
-- notification and PDF service URLs
-
-{/* TODO:Add hardened production compose example (resource limits, restart policy, health checks). */}
+- `SMTP_*` (required for system emails: forgot password, invite, onboarding)

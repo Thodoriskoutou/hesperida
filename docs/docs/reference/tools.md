@@ -19,6 +19,7 @@ Each tool runs in its own container and writes output to a dedicated results tab
 | `wcag` | accessibility checks + screenshots | `wcag_results` |
 | `security` | aggregated vulnerability findings and score | `security_results` |
 | `stress` | load testing and latency metrics | `stress_results` |
+| `mail` | DNS based email health | `mail_results` |
 
 ## Execution Notes
 

@@ -19,7 +19,7 @@ WORKDIR /app
 
 ARG CACHE_BUST
 
-RUN git clone https://github.com/seo-skills/seo-audit-skill.git seomator
+RUN git clone -b hesperida-v0.6.0 --single-branch https://github.com/rallisf1/seo-audit-skill.git seomator
 
 WORKDIR /app/seomator
 

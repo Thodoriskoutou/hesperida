@@ -13,6 +13,7 @@ The dashboard is built with SvelteKit and consumes the internal `/api/v1` contra
 - **Users**: role/group-scoped user management
 - **Websites**: website lifecycle, membership, verification, ownership transfer
 - **Jobs**: job creation, status tracking, result drill-down
+- **Scheduling**: recurring jobs with cron-based execution
 - **Tasks**: queue task list + detail + cancellation where allowed
 - **Notifications**: channel management + website notification rules
 - **Compare**: pairwise diff view for completed queue tasks (`/job-queue/{id}/diff`)

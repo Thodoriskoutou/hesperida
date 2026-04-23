@@ -21,7 +21,7 @@ Defined primarily in [`docker-compose.yaml`](./docker-compose.yaml):
 - `apprise`: user-notification target delivery API
 - `pdf`: Gotenberg HTML-to-PDF service
 - Tool images (executed on demand by orchestrator):
-  - `probe`, `seo`, `ssl`, `wcag`, `whois`, `domain`, `security`, `stress`
+  - `probe`, `seo`, `ssl`, `wcag`, `whois`, `domain`, `security`, `stress`, `mail`
 
 ### Profiles
 - `aio`: `db + orchestrator + web + apprise + pdf`
@@ -178,6 +178,7 @@ Behavior:
 - SMTP required (`SMTP_*`)
 - If SMTP missing: route returns `503 smtp_not_configured`
 - If send fails: route returns `502 notification_failed` and preserves rollback semantics
+- This channel is transactional app mail only; it is separate from the `mail` scan tool and `mail_results`.
 
 ### 2) User notifications (Apprise)
 Handled under `notifications/apprise.ts`.
@@ -208,7 +209,7 @@ Core tables:
 - `users`, `websites`, `website_verifications`, `jobs`, `job_queue`
 
 Result tables:
-- `probe_results`, `seo_results`, `ssl_results`, `wcag_results`, `whois_results`, `domain_results`, `security_results`, `stress_results`
+- `probe_results`, `seo_results`, `ssl_results`, `wcag_results`, `whois_results`, `domain_results`, `security_results`, `stress_results`, `mail_results`
 
 Notable events/triggers:
 - Result completion links (`*_completion`)
@@ -230,6 +231,7 @@ Tools are isolated containers launched by orchestrator:
 - `wcag`: Playwright + axe-core, per-device rows + screenshots
 - `security`: nuclei + wapiti + nikto aggregation/scoring
 - `stress`: vegeta metrics/scoring
+- `mail`: wraps `@wraps/email-check` for domain mail health; persists score/passes/warnings/errors + raw findings to `mail_results` and feeds `MAIL_SCORE_BELOW` notification thresholds
 
 Orchestrator injects task context via environment variables and network-attaches spawned containers to the same Docker network.
 

@@ -126,6 +126,7 @@ type JobNotificationPayload = {
 	stress?: { score?: number | null } | RecordId<'stress_results'> | null;
 	security?: { score?: number | null } | RecordId<'security_results'> | null;
 	wcag?: Array<{ score?: number | null } | RecordId<'wcag_results'>> | null;
+	mail?: Array<{ score?: number | null } | RecordId<'mail_results'>> | null;
 };
 
 const DEFAULT_NOTIFICATION_EVENTS: WebsiteNotificationEvents = {
@@ -219,11 +220,11 @@ const listWebsiteNotificationLinks = async (websiteId: RecordId<'websites'>): Pr
 const loadJobNotificationPayload = async (jobId: RecordId<'jobs'>): Promise<JobNotificationPayload | null> => {
 	const [rows] = await db
 		.query<[JobNotificationPayload[]]>(
-			`SELECT id, status, created_at, website, seo, stress, security, wcag
+			`SELECT id, status, created_at, website, seo, stress, security, wcag, mail
 			 FROM jobs
 			 WHERE id = $id
 			 LIMIT 1
-			 FETCH website, seo, stress, security, wcag;`,
+			 FETCH website, seo, stress, security, wcag, mail;`,
 			{ id: jobId }
 		)
 		.collect();
@@ -246,6 +247,10 @@ const sendCompletedNotifications = async (
 	const stressScore =
 		job.stress && typeof job.stress === 'object' && !('tb' in job.stress)
 			? toScore((job.stress as { score?: unknown }).score)
+			: null;
+	const mailScore =
+		job.mail && typeof job.mail === 'object' && !('tb' in job.mail)
+			? toScore((job.mail as { score?: unknown }).score)
 			: null;
 	const securityScore =
 		job.security && typeof job.security === 'object' && !('tb' in job.security)
@@ -270,6 +275,9 @@ const sendCompletedNotifications = async (
 			}
 			if (events.WCAG_SCORE_BELOW !== null && wcagScore !== null && wcagScore < events.WCAG_SCORE_BELOW) {
 				triggered.push(`WCAG score ${wcagScore.toFixed(1)} < ${events.WCAG_SCORE_BELOW}`);
+			}
+			if (events.MAIL_SCORE_BELOW !== null && mailScore !== null && mailScore < events.MAIL_SCORE_BELOW) {
+				triggered.push(`Mail score ${mailScore.toFixed(1)} < ${events.MAIL_SCORE_BELOW}`);
 			}
 			if (
 				events.SECURITY_SCORE_BELOW !== null &&

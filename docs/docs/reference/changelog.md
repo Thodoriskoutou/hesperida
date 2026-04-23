@@ -7,6 +7,17 @@ sidebar_position: 5
 
 This page mirrors the project root `CHANGELOG.md`.
 
+## [0.10.0] - 2026-04-23
+
+### Added
+
+- Mail audit tool
+
+### Changed
+
+- SEO tool no longer includes the official seomator npm package, since we build it from scratch (lighter docker container)
+- seomator & wraps load from my forks instead of the original for consistency
+
 ## [0.9.2] - 2026-04-22
 
 ### Changed

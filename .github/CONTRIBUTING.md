@@ -41,16 +41,19 @@ cp .env.example .env
 ln -s .env web/.env
 ```
 3. Build tool dependencies
+
+__the main branch is for development because it is synced with the original upstream repos, use the hesperida-* branch if you have errors__
+
 ```bash
 cd mail
-git clone https://github.com/wraps-team/wraps.git wraps
+git clone https://github.com/rallisf1/wraps.git wraps
 cd wraps
 pnpm install --frozen-lockfile
 pnpm --filter @wraps/core build
 pnpm --filter @wraps/email-check build
 
 cd ../seo
-git clone https://github.com/seo-skills/seo-audit-skill.git seomator
+git clone https://github.com/rallisf1/seo-audit-skill.git seomator
 cd seomator
 npm install && npm run build
 ```

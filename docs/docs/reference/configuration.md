@@ -32,7 +32,9 @@ This page lists the most important environment variables.
 | --- | --- |
 | `AUTH_SIGNUP_ENABLED` | enable/disable public signup |
 | `SCHEDULE_MIN_INTERVAL_SECONDS` | minimum allowed schedule interval in seconds (default `3600`) |
-| `COOKIE_MAX_AGE_SECONDS` | session cookie max age (default 1 hour) |
+| `SESSION_COOKIE_NAME` | dashboard session cookie name |
+| `SESSION_COOKIE_SECURE` | mark dashboard session cookie as secure (`true`/`false`) |
+| `SESSION_COOKIE_MAX_AGE` | dashboard session cookie max age in seconds (default `3600`) |
 
 ## Notifications
 

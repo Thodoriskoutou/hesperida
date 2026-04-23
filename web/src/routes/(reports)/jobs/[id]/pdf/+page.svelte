@@ -674,7 +674,7 @@
 							<Table.Cell><span class={`badge ${statusClass(row.status)}`}>{row.status}</span></Table.Cell>
 							<Table.Cell>{row.group}</Table.Cell>
 							<Table.Cell>{row.check}</Table.Cell>
-							<Table.Cell class="mono">{row.value || 'N/A'}</Table.Cell>
+							<Table.Cell class="mono whitespace-break-spaces break-all">{row.value || 'N/A'}</Table.Cell>
 							<Table.Cell class="mono whitespace-break-spaces break-all">
 								<div>{row.summary}</div>
 								{#if toDetailLines(row.details).length}

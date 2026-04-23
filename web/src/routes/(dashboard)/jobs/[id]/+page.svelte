@@ -481,6 +481,10 @@
 										<Dialog.Title>Detailed Results for {scoreRow.label}</Dialog.Title>
 										<Dialog.Description>
 											<ScrollArea class="h-125 pr-2">
+												<Alert.Root>
+													<TriangleAlertIcon />
+													<Alert.Title>This is just a DNS based result. This doesn't mean the email server is actually configured correctly. Use a tool like <Button variant="link" href="https://www.mail-tester.com/" target="_blank">mail-tester</Button> for more reliable results.</Alert.Title>
+												</Alert.Root>
 												<ScoreToolResults data={results} tool={scoreRow.tool.startsWith('wcag') ? 'wcag' : scoreRow.tool as Tool} />
 											</ScrollArea>
 										</Dialog.Description>
@@ -635,9 +639,7 @@
 						<Dialog.Description>
 							<Alert.Root>
 								<TriangleAlertIcon />
-								<Alert.Title
-								>This is not an exhaustive list, DNS servers often truncate responses (a.k.a. records might be missing)</Alert.Title
-								>
+								<Alert.Title>This is not an exhaustive list, DNS servers often truncate responses (a.k.a. records might be missing)</Alert.Title>
 							</Alert.Root>
 							<ScrollArea class="h-125 pr-2">
 								<DnsRecords {domain} />

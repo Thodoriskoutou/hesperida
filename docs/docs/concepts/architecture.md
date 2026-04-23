@@ -6,7 +6,7 @@ description: Runtime topology, data flow, ACL model, notifications, and release 
 
 # Hesperida Architecture
 
-This page reflects the current `v0.7.x` architecture and is based on the root `ARCHITECTURE.md` in the repository.
+This page reflects the current architecture and is based on the root `ARCHITECTURE.md` in the repository.
 
 ## Purpose
 
@@ -27,7 +27,7 @@ Main services:
 - `apprise` (notification target delivery)
 - `pdf` (Gotenberg)
 - on-demand tool containers:
-  - `probe`, `seo`, `ssl`, `wcag`, `whois`, `domain`, `security`, `stress`
+  - `probe`, `seo`, `ssl`, `wcag`, `whois`, `domain`, `security`, `stress`, `mail`
 
 Compose profile intent:
 
@@ -127,6 +127,7 @@ System emails:
 - used for forgot/invite/transfer/onboarding
 - missing SMTP -> `503 smtp_not_configured`
 - send failure -> `502 notification_failed` + rollback semantics
+- this is transactional app mail and separate from the `mail` scan tool output (`mail_results`)
 
 User notifications:
 
@@ -148,7 +149,7 @@ Core:
 
 Results:
 
-- `probe_results`, `seo_results`, `ssl_results`, `wcag_results`, `whois_results`, `domain_results`, `security_results`, `stress_results`
+- `probe_results`, `seo_results`, `ssl_results`, `wcag_results`, `whois_results`, `domain_results`, `security_results`, `stress_results`, `mail_results`
 
 ## Release and Docs Pipeline
 

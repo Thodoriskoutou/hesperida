@@ -25,6 +25,7 @@ sidebar_position: 2
 - `wcag_results`
 - `security_results`
 - `stress_results`
+- `mail_results`
 
 ## Key Relationship Rules
 

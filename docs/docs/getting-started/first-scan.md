@@ -35,7 +35,7 @@ Verification records are shared per `(group, registrable_domain)`, so websites i
 
 Create a job with one or more tool types:
 
-- `probe`, `domain`, `whois`, `ssl`, `seo`, `wcag`, `security`, `stress`
+- `domain`, `whois`, `ssl`, `seo`, `wcag`, `security`, `stress`, `mail`
 
 The orchestrator schedules queue tasks and each tool writes to its `*_results` table.
 

@@ -11,18 +11,20 @@ sidebar_position: 1
 - A Linux host with at least:
   - 2 CPU cores / 4 threads
   - 4GB RAM
-  - ~6GB free storage
+  - ~10GB free storage
 
 ## Quick Start
 
 1. Clone the repository.
 2. Copy and edit the environment file.
-3. Start services using Compose profiles.
+3. Pull tool worker images.
+4. Start services using Compose profiles.
 
 ```bash
 git clone https://github.com/rallisf1/hesperida.git
 cd hesperida
 cp .env.example .env
+docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 
@@ -41,19 +43,20 @@ You should rotate this account credentials after initial setup.
 
 ## Compose Profiles
 
-- `aio`: full local stack (`db`, `db-init`, `orchestrator`, `web`, `apprise`, `pdf`)
-- `backend`: backend services (for remote DB setups)
-- `database`: SurrealDB + schema import only
-- `tools`: build/test tool images
+- `aio`: full local stack (`db`, `orchestrator`, `web`, `apprise`, `pdf`)
+- `backend`: backend services for external DB setups (`orchestrator`, `web`, `apprise`, `pdf`)
+- `database`: SurrealDB only
+- `tools`: tool image pull/build profile (not long-running in production)
 
 ## Upgrade Flow
 
 ```bash
 docker compose --profile aio down
-git pull
-docker compose --profile tools build
-docker compose build orchestrator web
+docker compose --profile aio pull
+docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
+
+For external DB deployments, use the same flow with the `backend` profile.
 
 {/* TODO:Add zero-downtime upgrade procedure once blue/green or rolling strategy is implemented. */}

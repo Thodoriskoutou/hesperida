@@ -26,7 +26,7 @@ This documentation is the canonical entry point for architecture, deployment, AP
 ## What You Can Do
 
 - Manage users, websites, jobs, and queue tasks through dashboard and API.
-- Run multi-tool scans (probe, domain, whois, ssl, seo, wcag, security, stress).
+- Run multi-tool scans (probe, domain, whois, ssl, seo, wcag, security, stress, mail).
 - Enforce website verification before scan execution.
 - Generate client-facing PDF reports for completed jobs.
 - Receive notifications (API-level and dashboard in-app toasts).
@@ -40,7 +40,7 @@ This documentation is the canonical entry point for architecture, deployment, AP
 
 ## Current Scope
 
-The docs currently target the `v0.6.x` feature set:
+The docs currently target the current release line:
 
 - Dashboard CRUD and live updates
 - Multi-tenant ACL (`role`, `group`, `is_superuser`)

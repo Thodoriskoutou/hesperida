@@ -18,18 +18,21 @@ A self-hosted web scanner that shows you how both people and bots see your websi
 | Whois       | [whois](https://github.com/rfc1036/whois)                           | ✅         | Gets IP whois info                                                                |
 | Security    | [nuclei](https://github.com/projectdiscovery/nuclei), [wapiti](https://github.com/wapiti-scanner/wapiti), [nikto](https://github.com/sullo/nikto) | ✅         | Standard vulnerability scanning                                                   |
 | Stress Test | [vegeta](https://github.com/tsenart/vegeta)                               | ✅        | HTTP load testing                                                                 |
+| Mail Health | [wraps](https://github.com/wraps-team/wraps)                               | ✅        | DNS based health check                                                                 |
 
 ### Dashboard
 
-A Sveltekit dashboard is in beta. The main functionality is:
+A Sveltekit web dashboard is available. The main functionality is:
 
 1. CRUD for users/websites/jobs
 2. Website verification instructions and verification checks
 3. View scan results
+4. Compare scan results
+5. Schedule Jobs
 
 ### API
 
-All the dashboard functionality is available through [OpenAPI](https://rallisf1.github.io/hesperida/api/endpoints/hesperida-web-app-scanner-api).
+Available through [OpenAPI](https://rallisf1.github.io/hesperida/api/endpoints/hesperida-web-app-scanner-api).
 
 ### Alerts & Webhooks
 
@@ -47,12 +50,13 @@ User notifications are configured via `notification_channels` + `website_notific
 
 1. Download, a.k.a. `git clone https://github.com/rallisf1/hesperida.git && cd hesperida`
 2. `cp .env.example .env` and edit it with your information
-3. Start it up:
+3. `docker compose --profile tools pull` to update all the tools docker images
+4. Start it up:
   - With a self-hosted database
   `docker compose --profile aio up -d`
   - With SurrealDB SaaS
   `docker compose --profile backend up -d`
-4. Open `http://localhost:3000` (or according to your configuration)
+5. Open `http://localhost:3000` (or according to your configuration)
 
 ### Super User account
 
@@ -64,8 +68,9 @@ You can change both later
 ### Updating
 
 1. `docker compose --profile aio down` to stop the running containers
-2. `docker compose pull` to update all the docker images
-3. `docker compose --profile aio up -d` to start
+2. `docker compose --profile aio pull` to update all the backend docker images
+3. `docker compose --profile tools pull` to update all the tools docker images
+4. `docker compose --profile aio up -d` to start
 
 ## Known bugs
 
@@ -112,17 +117,6 @@ Things that I don't personally need, but would be helpful to some users. Check t
 ### Stress Testing
 
 [k6](https://github.com/grafana/k6) could be added to address complex workflows (e.g. login).
-The current `stress` tool options are:
-
-- `STRESS_RATE`
-- `STRESS_DURATION`
-- `STRESS_METHOD`
-- `STRESS_TIMEOUT`
-- `STRESS_WORKERS`
-- `STRESS_MAX_WORKERS`
-- `STRESS_HEADERS`
-- `STRESS_BODY`
-- `STRESS_LATENCY_WARN_MS`
 
 ## Hardware Requirements
 
@@ -132,7 +126,7 @@ The more the merrier, but at least:
 
 - 2 CPU Cores / 4 threads (a.k.a. 4 vCores on a standard VPS)
 - 4GB RAM
-- 6GB of available Storage (5GB for the images + 1GB for the actual data)
+- 10GB of available Storage (9GB for the images + 1GB for the actual data)
 
 There is a distinction between light (CLI/Node tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
 
@@ -145,7 +139,7 @@ Those are just there for developer testing and pre-building, you'd never need to
 ### Can I host the services on different hosts (a.k.a. servers) ?
 
 Currently you can run the database on a different host than the orchestrator using the `database` and `backend` compose profiles.
-You will also be able to host the API and Dashboard separately.
+You can also host the API and Dashboard separately.
 Running the scan tools on different hosts than the `backend` (a.k.a. orchestrator) is out of the scope of this FOSS project.
 
 ### axe-core doesn't provide a score, how do you calculate it?

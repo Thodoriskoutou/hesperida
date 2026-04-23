@@ -7,7 +7,7 @@ RUN npm install -g pnpm@latest-10
 
 ARG CACHE_BUST
 
-RUN git clone https://github.com/wraps-team/wraps.git wraps
+RUN git clone -b hesperida-v0.10.0 --single-branch https://github.com/rallisf1/wraps.git wraps
 
 WORKDIR /builder/wraps
 

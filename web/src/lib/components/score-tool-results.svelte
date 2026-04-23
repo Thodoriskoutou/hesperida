@@ -672,11 +672,11 @@
 											</ul>
 										</details>
                                     {:else}
-									    {row.value?.trim().length ? row.value : '—'}
+									    <p class="whitespace-normal wrap-break-word">{row.value?.trim().length ? row.value : '—'}</p>
 									{/if}
 								</Table.Cell>
-								<Table.Cell class="align-top">
-									<p class="text-sm leading-5 whitespace-normal wrap-break-word">{row.summary}</p>
+								<Table.Cell class="align-top whitespace-normal wrap-break-word">
+									<p class="text-sm leading-5">{row.summary}</p>
 									{#if detailEntries(row.details).length}
 										<details class="mt-2">
 											<summary class="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
@@ -686,7 +686,7 @@
 												{#each detailEntries(row.details) as [key, value] (`${row.id}:${key}`)}
 													<div class="grid grid-cols-[120px_1fr] gap-2 border-b pb-1 last:border-0">
 														<dt class="text-muted-foreground font-medium">{humanizeToken(key)}</dt>
-														<dd class="wrap-break-word">{formatDetailValue(value)}</dd>
+														<dd>{formatDetailValue(value)}</dd>
 													</div>
 												{/each}
 											</dl>

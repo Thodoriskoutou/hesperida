@@ -33,15 +33,22 @@ Mitigation:
 - increase host CPU/RAM
 - re-run failed jobs once load drops
 
-## Invite / Transfer Fails with Connectivity Error
-
-Likely cause: Apprise not configured or unreachable.
+## Invite / Transfer / Forgot Fails
 
 Check:
 
-- `APPRISE_URL` (or equivalent notification endpoint config)
-- container health of `apprise`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `SMTP_FROM`
+- `SMTP_SECURE` compatibility with provider requirements
 - outbound network reachability from `web`
+
+Typical behavior:
+
+- If SMTP is missing: API returns `503 smtp_not_configured`
+- If send fails after token/user prep: API returns `502 notification_failed` and rolls back route-side temporary changes
 
 ## Dashboard Session Drops
 

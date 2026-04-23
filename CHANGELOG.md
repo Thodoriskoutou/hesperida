@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [0.10.0] - 2026-04-22
+## [0.10.0] - 2026-04-23
 
 ### Added
 
@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - SEO tool no longer includes the official seomator npm package, since we build it from scratch (lighter docker container)
+- seomator & wraps load from my forks instead of the original for consistency
 
 ## [0.9.2] - 2026-04-22
 

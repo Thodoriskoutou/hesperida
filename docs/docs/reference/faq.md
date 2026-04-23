@@ -13,7 +13,7 @@ Those containers are mainly for developer testing and pre-building images. You t
 
 Yes, database and backend can be split:
 
-- database: `db` + `db-init`
+- database: `db`
 - backend: `orchestrator` + `web` (+ optional `apprise` / `pdf`)
 
 Running scan tool containers on separate hosts from orchestrator is out of scope right now.

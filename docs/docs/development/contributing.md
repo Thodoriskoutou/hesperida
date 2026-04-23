@@ -6,40 +6,81 @@ description: Contribution workflow, testing gates, schema/API rules, and release
 
 # Contributing
 
-This page is based on the repository `.github/CONTRIBUTING.md`.
+This page mirrors the repository `.github/CONTRIBUTING.md`.
 
 ## Scope and Principles
 
-- Open an issue before large changes.
-- Keep pull requests focused.
-- Keep API/schema changes explicit.
-- Avoid bundling unrelated refactors.
+- Open an issue before large work.
+- Prefer small, focused pull requests.
+- Keep API contracts and DB schema changes explicit.
+- Do not mix unrelated refactors with feature/bug fixes.
 
 ## Repository Layout
 
 - `web/`: SvelteKit API + dashboard
-- `orchestrator/`: queue scheduler
-- Tool runtimes: `probe/`, `domain/`, `whois/`, `ssl/`, `seo/`, `wcag/`, `security/`, `stress/`
+- `orchestrator/`: queue scheduler / tool runner
+- Tool runtimes: `probe/`, `domain/`, `whois/`, `ssl/`, `seo/`, `wcag/`, `security/`, `stress/`, `mail/`
 - Shared contracts: `types.d.ts`, `constants.ts`
-- Schema: `web/src/lib/server/schema.surql`
+- DB schema: `web/src/lib/server/schema.surql`
 - Docs: `docs/`
 
 ## Requirements
 
-1. Linux / macOS / WSL
-2. Docker + Compose
+1. Linux, macOS, or WSL **UNTESTED**
+2. Docker with compose
 3. Node.js `^22.22.1`
 4. Bun `^1.3.10`
+5. pnpm
 
 ## Local Setup
+
+1. Clone:
 
 ```bash
 git clone https://github.com/rallisf1/hesperida.git
 cd hesperida
+```
+
+2. Configure env:
+
+```bash
 cp .env.example .env
 ln -s .env web/.env
-docker compose --profile dev up
+```
 
+3. Build tool dependencies
+
+__the main branch is for development because it is synced with the original upstream repos, use the hesperida-* branch if you have errors__
+
+```bash
+cd mail
+git clone https://github.com/rallisf1/wraps.git wraps
+cd wraps
+pnpm install --frozen-lockfile
+pnpm --filter @wraps/core build
+pnpm --filter @wraps/email-check build
+
+cd ../seo
+git clone https://github.com/rallisf1/seo-audit-skill.git seomator
+cd seomator
+npm install && npm run build
+```
+
+4. Build tools:
+
+```bash
+docker compose -f docker-compose.dev.yaml --profile tools build
+```
+
+5. Start infra:
+
+```bash
+docker compose -f docker-compose.dev.yaml --profile dev up
+```
+
+6. Run web app:
+
+```bash
 cd web
 bun install
 bun run dev
@@ -47,21 +88,17 @@ bun run dev
 
 ## Environment Notes
 
-- `SURREAL_*` must point to reachable DB.
+- `SURREAL_*` must point to a reachable DB.
+- System email routes (`forgot`, `invite`, `transfer ownership`, admin user create) require SMTP (`SMTP_*`).
 - Use `NODE_ENV=development`.
-- SMTP (`SMTP_*`) is required for system-email routes:
-  - forgot password
-  - website invite
-  - ownership transfer
-  - admin-created user onboarding
-- Apprise is used for user notification targets, not system emails.
+- Apprise is used for user notification targets, not for system mail.
 
 ## Branch and PR Workflow
 
-1. Create branch from `main`.
-2. Implement changes with clear commits.
-3. Run checks/tests.
-4. Update docs/changelog when needed.
+1. Create a feature branch from `main`.
+2. Make changes with clear commit messages.
+3. Run checks/tests locally (see below).
+4. Update docs/changelog when behavior changes.
 5. Open PR to `development` with:
    - what changed
    - why
@@ -70,52 +107,52 @@ bun run dev
 
 ## Testing Requirements
 
-### Typecheck
+### Web typecheck
 
 ```bash
 cd web
 bun run check
 ```
 
-### Tests
+### Web tests
 
 ```bash
 cd web
 bun run test
 ```
 
-### Runtime validation
-
-Create a real Job using all available tools and verify successful execution.
+### Tool runs
+Create a Job with all available tools and check that they all succeed.
 
 Notes:
+- Integration tests need reachable SurrealDB.
+- `web/src/tests/helpers/preload.ts` sets test defaults.
 
-- Integration tests require a reachable SurrealDB.
-- Test env defaults are in `web/src/tests/helpers/preload.ts`.
+## API and Schema Change Rules
 
-## API and Schema Rules
+If you change API behavior:
 
-If API behavior changes:
+- Update route `@swagger` docs in `web/src/routes/api/v1/**/+server.ts`.
+- Regenerate and commit `web/static/openapi.json` (build `web` once).
+- If dashboard consumes that API, update dashboard loaders/mappers accordingly.
 
-- update `@swagger` blocks in route handlers
-- regenerate and commit `web/static/openapi.json`
-- update dashboard loaders/mappers if response shape changed
+If you change schema/ACL:
 
-If schema/ACL changes:
-
-- update `web/src/lib/server/schema.surql`
-- use `OVERWRITE` (not `IF NOT EXISTS`) when modifying existing fields
-- bump `web/package.json` version
-- verify startup schema init still works (`db-init.ts`)
-- add/update regression tests
+- Update `web/src/lib/server/schema.surql`.
+- When updating existing fields, make sure they use `OVERWRITE` instead of `IF NOT EXISTS`.
+- Increase the version in `web/package.json`.
+- Verify startup DB init still succeeds (`web/src/lib/server/db-init.ts`).
+- Add/adjust tests for permission behavior and regressions.
 
 ## Notification Rules
 
-- System mail: `web/src/lib/server/system-mail.ts` (Nodemailer)
-- User target notifications: `web/src/lib/server/notifications/*` (Apprise)
-- Keep rollback semantics on failed system-email sends
+- System mail goes through `web/src/lib/server/system-mail.ts` (Nodemailer).
+- User notification target test/send stays in Apprise modules under `web/src/lib/server/notifications/`.
+- Preserve rollback semantics for routes that create temporary tokens/users when email fails.
 
 ## Docs Workflow
+
+Docs are built from `docs/` with Docusaurus.
 
 ```bash
 cd docs
@@ -123,41 +160,39 @@ npm ci
 npm run build
 ```
 
-For API changes, ensure `web/static/openapi.json` is up to date before docs generation.
+`docs` build scripts sync OpenAPI from `web/static/openapi.json`, so keep that file current in PRs that touch API contracts.
 
-## CI/CD and Releases
+## CI/CD and Release Expectations
 
-- `docs-pages.yml`: docs publish from `main`
-- `auto-tag-version.yml`: auto-tag from `web/package.json` version on `main`
-- `images-ghcr.yml`: multi-arch image publish on version tags
+- `docs-pages.yml`: builds and deploys docs from `main`.
+- `auto-tag-version.yml`: creates tag `v<web/package.json version>` when that version changes on `main`.
+- `images-ghcr.yml`: builds/pushes multi-arch images on tag pushes.
 
 Version source of truth is `web/package.json`.
 
-If version is bumped:
+If you bump version:
 
-- add matching `CHANGELOG.md` entry
-- ensure API/docs changes are included
+- Add matching `CHANGELOG.md` section.
+- Ensure API/docs updates are committed before merge.
 
 ## AI Coding Usage
 
-AI-assisted development is expected in this project. Validate generated code before merge.
-
-Recommended models:
+AI Coding is expected at this point. Over 90% of the project's code has been AI generated at this point. Just make sure you know what the AI is doing. Use `ARCHITECTURE.md` to give your agent a head start. Models recommended:
 
 - GPT-5.3-Codex
 - Gemini 3.1 Pro
 
 ## PR Checklist
 
-- [ ] scoped change
-- [ ] `bun run check` passes
-- [ ] relevant tests pass
-- [ ] schema/API/docs updated if needed
-- [ ] changelog updated for user-visible changes
-- [ ] new env vars documented
+- [ ] Change is scoped and reviewed for side effects.
+- [ ] `bun run check` passes in `web/`.
+- [ ] Relevant tests pass locally.
+- [ ] Schema/API/docs updated as needed.
+- [ ] `CHANGELOG.md` updated for user-visible behavior.
+- [ ] New env vars are documented in `.env.example` and docs config reference.
 
-## Security
+## Security and Sensitive Changes
 
-- Never commit secrets.
-- For auth/ACL changes, include explicit allow/deny tests.
-- Preserve safeguards and rollback logic for destructive operations.
+- Never commit secrets in `.env`, workflow files, or tests.
+- For auth/ACL changes, include explicit tests for allowed/forbidden paths.
+- For destructive operations (delete/transfer), preserve current safeguards and rollback behavior.

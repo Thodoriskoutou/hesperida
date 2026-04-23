@@ -31,6 +31,7 @@ Each website link can enable:
 - `JOB_FAILED` (boolean)
 - `SEO_SCORE_BELOW` (`number | null`)
 - `STRESS_SCORE_BELOW` (`number | null`)
+- `MAIL_SCORE_BELOW` (`number | null`)
 - `WCAG_SCORE_BELOW` (`number | null`)
 - `SECURITY_SCORE_BELOW` (`number | null`)
 
@@ -82,4 +83,3 @@ Delivery failures are logged and do not mutate job/task status.
   - superuser can link any website/channel
 
 {/* TODO:Add sample notification payloads from orchestrator logs for each trigger type. */}
-
