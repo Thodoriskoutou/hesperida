@@ -42,6 +42,7 @@ export interface QueueTaskView extends Omit<ApiQueueTask, 'id' | 'job'> {
 	id: string;
 	job_id: string;
 	website_url?: string;
+	result_created_at?: string | null;
 }
 
 export interface ScheduleRunJobView extends Omit<ApiScheduleRunJob, 'id' | 'website_id'> {

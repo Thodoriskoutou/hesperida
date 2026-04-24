@@ -10,136 +10,47 @@ services:
     image: ghcr.io/rallisf1/hesperida-probe:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
-      - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
-      - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
-      - "MAX_ATTEMPTS=${MAX_ATTEMPTS:-4}"
-      - "WCAG_RUN_ONLY=${WCAG_RUN_ONLY:-}"
-      - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
   
   whois:
     image: ghcr.io/rallisf1/hesperida-whois:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   ssl:
     image: ghcr.io/rallisf1/hesperida-ssl:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   domain:
     image: ghcr.io/rallisf1/hesperida-domain:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   seo:
     image: ghcr.io/rallisf1/hesperida-seo:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   wcag:
     image: ghcr.io/rallisf1/hesperida-wcag:latest
     restart: never
     profiles: [tools]
     ipc: host
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   security:
     image: ghcr.io/rallisf1/hesperida-security:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
-      - "SECURITY_NUCLEI_TEMPLATES=${SECURITY_NUCLEI_TEMPLATES:-}"
-      - "SECURITY_NIKTO_TIMEOUT=${SECURITY_NIKTO_TIMEOUT:-900}"
-      - "SECURITY_SCORE_THRESHOLD=${SECURITY_SCORE_THRESHOLD:-400}"
 
   stress:
     image: ghcr.io/rallisf1/hesperida-stress:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
-      - "STRESS_RATE=${STRESS_RATE:-10}"
-      - "STRESS_DURATION=${STRESS_DURATION:-30s}"
-      - "STRESS_METHOD=${STRESS_METHOD:-GET}"
-      - "STRESS_TIMEOUT=${STRESS_TIMEOUT:-10s}"
-      - "STRESS_WORKERS=${STRESS_WORKERS:-10}"
-      - "STRESS_MAX_WORKERS=${STRESS_MAX_WORKERS:-100}"
-      - "STRESS_HEADERS=${STRESS_HEADERS:-{}}"
-      - "STRESS_BODY=${STRESS_BODY:-}"
-      - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
 
   mail:
     image: ghcr.io/rallisf1/hesperida-mail:latest
     restart: never
     profiles: [tools]
-    environment:
-      - "SURREAL_USER=${SURREAL_USER:-root}"
-      - "SURREAL_PASS=${SURREAL_PASS:?}"
-      - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
-      - "SURREAL_DATABASE=${SURREAL_DATABASE:-main}"
-      - "SURREAL_ADDRESS=${SURREAL_ADDRESS:-db:8000}"
-      - "SURREAL_PROTOCOL=${SURREAL_PROTOCOL:-http}"
-      - "DEBUG=${DEBUG:-false}"
 
   orchestrator:
     image: ghcr.io/rallisf1/hesperida-orchestrator:latest
@@ -149,6 +60,7 @@ services:
       web:
         condition: service_healthy
     environment:
+      - "NODE_ENV=${NODE_ENV:-production}"
       - "SURREAL_USER=${SURREAL_USER:-root}"
       - "SURREAL_PASS=${SURREAL_PASS:?}"
       - "SURREAL_NAMESPACE=${SURREAL_NAMESPACE:-main}"
@@ -158,7 +70,27 @@ services:
       - "APPRISE_URL=${APPRISE_URL:-http://apprise:8000}"
       - "APPRISE_API_KEY=${APPRISE_API_KEY:-}"
       - "DASHBOARD_URL=${SERVICE_URL_WEB}"
+      - "JOB_QUEUE_RETENTION=${JOB_QUEUE_RETENTION:-365}"
       - "DEBUG=${DEBUG:-false}"
+      - "WCAG_RUN_ONLY=${WCAG_RUN_ONLY:-}"
+      - "WCAG_EXCLUDE_RULES=${WCAG_EXCLUDE_RULES:-}"
+      - "SECURITY_NUCLEI_TEMPLATES=${SECURITY_NUCLEI_TEMPLATES:-}"
+      - "SECURITY_NUCLEI_TIMEOUT=${SECURITY_NUCLEI_TIMEOUT:-8}"
+      - "SECURITY_NUCLEI_RETRIES=${SECURITY_NUCLEI_RETRIES:-1}"
+      - "SECURITY_NIKTO_TIMEOUT=${SECURITY_NIKTO_TIMEOUT:-600}"
+      - "SECURITY_NIKTO_REQUEST_TIMEOUT=${SECURITY_NIKTO_REQUEST_TIMEOUT:-6}"
+      - "SECURITY_WAPITI_MAX_SCAN_TIME=${SECURITY_WAPITI_MAX_SCAN_TIME:-600}"
+      - "SECURITY_WAPITI_MAX_ATTACK_TIME=${SECURITY_WAPITI_MAX_ATTACK_TIME:-120}"
+      - "SECURITY_SCORE_THRESHOLD=${SECURITY_SCORE_THRESHOLD:-400}"
+      - "STRESS_RATE=${STRESS_RATE:-10}"
+      - "STRESS_DURATION=${STRESS_DURATION:-30s}"
+      - "STRESS_METHOD=${STRESS_METHOD:-GET}"
+      - "STRESS_TIMEOUT=${STRESS_TIMEOUT:-10s}"
+      - "STRESS_WORKERS=${STRESS_WORKERS:-10}"
+      - "STRESS_MAX_WORKERS=${STRESS_MAX_WORKERS:-100}"
+      - "STRESS_HEADERS=${STRESS_HEADERS:-{}}"
+      - "STRESS_BODY=${STRESS_BODY:-}"
+      - "STRESS_LATENCY_WARN_MS=${STRESS_LATENCY_WARN_MS:-500}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 

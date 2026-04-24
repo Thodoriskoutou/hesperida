@@ -151,9 +151,7 @@ export const createWebsite = async (input: {
 			owner: type::record('users', $user),
 			users: [type::record('users', $user)],
 			url: $url,
-			description: $description,
-			verification_id: NONE,
-			verified_at: NONE
+			description: $description
 		} RETURN AFTER;`,
 		{
 			...input,

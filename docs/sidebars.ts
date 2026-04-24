@@ -36,7 +36,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Operations',
-      items: ['operations/deployment', 'operations/troubleshooting'],
+      items: ['operations/deployment', 'operations/reverse-proxy', 'operations/troubleshooting'],
     },
     {
       type: 'category',

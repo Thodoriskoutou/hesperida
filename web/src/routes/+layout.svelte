@@ -3,8 +3,23 @@
 	import { ModeWatcher } from "mode-watcher";
 	import { Toaster } from "svelte-sonner";
 	let { children } = $props();
+
+	function portal(node: HTMLElement) {
+		document.body.appendChild(node);
+		return {
+		destroy() {
+			if (node.parentNode) {
+			node.parentNode.removeChild(node);
+			}
+		}
+		};
+	}
 </script>
 
 <ModeWatcher />
-<Toaster richColors position="top-right" />
+
+<div use:portal>
+  <Toaster richColors position="top-right" />
+</div>
+
 {@render children()}

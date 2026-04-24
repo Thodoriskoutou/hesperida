@@ -1,0 +1,13 @@
+my.domain.com {
+	reverse_proxy web:3000
+
+	# Example: expose the PDF service via /pdf/*
+	# handle_path /pdf/* {
+	# 	reverse_proxy pdf:3000
+	# }
+
+	# Example: expose the Apprise API via /apprise/*
+	# handle_path /apprise/* {
+	# 	reverse_proxy apprise:8000
+	# }
+}

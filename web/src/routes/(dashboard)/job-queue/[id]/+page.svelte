@@ -8,6 +8,7 @@
 	import ScoreChart, { type ScoreChartItem } from '$lib/components/chart-radial-score.svelte';
 	import DnsRecords from '$lib/components/dns-records.svelte';
 	import ScoreToolResults from '$lib/components/score-tool-results.svelte';
+	import ToolIcon from '$lib/components/tool-icon.svelte';
 	import type { Tool } from '$lib/types';
 	import type { ApiCommonScoreResult, ApiDomainResult, ApiQueueTask } from '$lib/types/api';
 	import type { JobView } from '$lib/types/view';
@@ -19,11 +20,65 @@
 	import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   	import * as Alert from '$lib/components/ui/alert';
 	import { createToastEnhance } from '$lib/form-toast';
+	import { DateTime, Duration } from 'surrealdb';
 
 	let { data, form } = $props();
 	const task = $derived(data.task as ApiQueueTask & { id: string; job: string });
 	const job = $derived(data.job as JobView & { website_url: string });
 	const taskType = $derived(String(data.taskType ?? '') as Tool);
+
+	type TimestampedResult = {
+		created_at?: string | null;
+	};
+
+	const now = new DateTime();
+
+	const toDateTime = (value: unknown): DateTime | null => {
+		if (!value) return null;
+		if (value instanceof DateTime) return value;
+		try {
+			return new DateTime(String(value));
+		} catch {
+			return null;
+		}
+	};
+
+	const durationBetween = (startValue: unknown, endValue: unknown): Duration | null => {
+		const start = toDateTime(startValue);
+		const end = toDateTime(endValue);
+		if (!start || !end || end.compare(start) < 0) return null;
+		return end.diff(start);
+	};
+
+	const formatDuration = (duration: Duration | null): string => {
+		if (!duration) return '';
+		const totalSeconds = duration.seconds;
+		if (totalSeconds < 0n) return '';
+
+		const hours = totalSeconds / 3600n;
+		const minutes = (totalSeconds % 3600n) / 60n;
+		const seconds = totalSeconds % 60n;
+		const pad = (value: bigint) => value.toString().padStart(2, '0');
+
+		if (hours > 0n) return `${hours.toString()}h ${pad(minutes)}m`;
+		if (minutes > 0n) return `${minutes.toString()}m ${pad(seconds)}s`;
+		return `${seconds.toString()}s`;
+	};
+
+	const taskTiming = $derived.by(() => {
+		const result = data.toolResult as TimestampedResult | null;
+		if (result?.created_at) {
+			const duration = formatDuration(durationBetween(task.created_at, result.created_at));
+			return duration ? { label: 'Duration', duration } : null;
+		}
+
+		if (String(task.status ?? '').toLowerCase() === 'processing') {
+			const duration = formatDuration(durationBetween(task.created_at, now));
+			return duration ? { label: 'Elapsed', duration } : null;
+		}
+
+		return null;
+	});
 
 	const statusBadgeVariant = (status?: string) => {
 		switch (status) {
@@ -84,6 +139,9 @@
 			</Card.Title>
 			<Card.Description>
 				Created {formatDate(String(task.created_at ?? ''), true)}
+				{#if taskTiming}
+					· {taskTiming.label}: {taskTiming.duration}
+				{/if}
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="grid gap-4 md:grid-cols-2">
@@ -110,10 +168,13 @@
 
 	{#if data.isScoreTool && scoreItems.length}
 	<div class="grid gap-4" class:lg:grid-cols-3={taskType === 'wcag' && data.wcagScreenshotId}>
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>{String(taskType).toUpperCase()} Score</Card.Title>
-			</Card.Header>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
+						<ToolIcon tool={taskType} />
+						{String(taskType).toUpperCase()} Score
+					</Card.Title>
+				</Card.Header>
 			<Card.Content>
 				<ScoreChart scores={scoreItems} />
 				<Table.Root>
@@ -160,9 +221,12 @@
 	{#if taskType === 'domain' && data.toolResult}
 	{@const domain = data.toolResult as ApiDomainResult & { expires_in?: number }}
 	<div class="grid lg:grid-cols-3 gap-4">
-		<Card.Root>
-			<Card.Header class="flex justify-between">
-				<Card.Title class="capitalize">Domain Results</Card.Title>
+			<Card.Root>
+				<Card.Header class="flex justify-between">
+					<Card.Title class="capitalize flex items-center gap-2">
+						<ToolIcon tool="domain" />
+						Domain Results
+					</Card.Title>
 				{#if (domain.expires_in ?? 0) > 0}
 				<Badge>expires in {domain.expires_in ?? 0} days</Badge>
 				{:else if (domain.expires_in ?? 0) < 0}
@@ -261,11 +325,14 @@
 			</Card.Content>
 		</Card.Root>
 	</div>
-	{:else if data.isScoreTool && data.toolResult}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>{String(taskType).toUpperCase()} Findings</Card.Title>
-			</Card.Header>
+		{:else if data.isScoreTool && data.toolResult}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
+						<ToolIcon tool={taskType} />
+						{String(taskType).toUpperCase()} Findings
+					</Card.Title>
+				</Card.Header>
 			<Card.Content>
 				<ScoreToolResults data={data.toolResult} tool={taskType} />
 			</Card.Content>

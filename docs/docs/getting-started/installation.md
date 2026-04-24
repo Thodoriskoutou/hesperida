@@ -11,7 +11,7 @@ sidebar_position: 1
 - A Linux host with at least:
   - 2 CPU cores / 4 threads
   - 4GB RAM
-  - ~10GB free storage
+  - 6GB+ free storage
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ docker compose --profile tools pull
 docker compose --profile aio up -d
 ```
 
-Open the web service at `http://localhost:3000` (or your configured host).
+Open the web service at `http://localhost:3000` for local access, or through your configured reverse proxy in production.
 
 ## Superuser Bootstrap
 
@@ -39,7 +39,27 @@ At startup, the API ensures a superuser account exists:
 
 You should rotate this account credentials after initial setup.
 
-{/* TODO:Document the final production hardening baseline (TLS termination, reverse proxy, backup strategy). */}
+## Production HTTP(S)
+
+Most production Docker hosts already have a reverse proxy. With the default `docker-compose.yaml`, point your existing proxy at `127.0.0.1:${WEB_PORT:-3000}` and set:
+
+```env
+DASHBOARD_URL=https://your.domain
+SESSION_COOKIE_SECURE=true
+```
+
+If you want Hesperida to run its own Caddy container, use `docker-compose-caddy.yaml`:
+
+- point your DNS name at the Docker host
+- replace `my.domain.com` in the root `Caddyfile`
+- set `DASHBOARD_URL=https://your.domain`
+- set `SESSION_COOKIE_SECURE=true`
+
+```bash
+docker compose -f docker-compose-caddy.yaml --profile aio up -d
+```
+
+See [Reverse Proxy](../operations/reverse-proxy.md) for both proxy options.
 
 ## Compose Profiles
 

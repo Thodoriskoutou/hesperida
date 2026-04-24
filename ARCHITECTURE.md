@@ -235,6 +235,10 @@ Tools are isolated containers launched by orchestrator:
 
 Orchestrator injects task context via environment variables and network-attaches spawned containers to the same Docker network.
 
+Operational maintenance in orchestrator:
+- Daily `job_queue` retention cleanup based on `JOB_QUEUE_RETENTION` (days, default `365`)
+- Startup orphan cleanup for managed tool containers labeled `com.hesperida.managed=true`
+
 ---
 
 ## Networking and Connectivity
@@ -271,7 +275,6 @@ Orchestrator injects task context via environment variables and network-attaches
 
 ## Operational Constraints
 
-- Queue cleanup and orphan container cleanup are still pending
 - Reliability under heavy concurrency remains resource-sensitive
 - Critical system-email flows are synchronous/blocking by design
 - Multi-tenant ACL is enforced at both schema and API layers

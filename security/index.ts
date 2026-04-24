@@ -7,6 +7,7 @@ type Scanner = "nuclei" | "wapiti" | "nikto";
 const severityRank: Record<RiskLevel, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 const thresholdInput = Number.parseFloat(Bun.env.SECURITY_SCORE_THRESHOLD ?? "400");
 const THRESHOLD = Number.isFinite(thresholdInput) && thresholdInput > 0 ? thresholdInput : 400;
+const STDERR_TAIL_CHARS = 1200;
 
 interface SecurityFinding {
     source: Scanner;
@@ -44,10 +45,21 @@ interface SecurityResultRecord {
             wapiti: number;
             nikto: number;
         };
+        scanner_metrics: Record<Scanner, {
+            elapsed_seconds: number;
+            timed_out: boolean;
+            output_exists: boolean;
+            output_items: number;
+        }>;
         config: {
             target: string;
             nuclei_templates: string[];
             nikto_timeout_seconds: number;
+            nikto_request_timeout_seconds: number | null;
+            wapiti_max_scan_time_seconds: number | null;
+            wapiti_max_attack_time_seconds: number | null;
+            nuclei_timeout_seconds: number | null;
+            nuclei_retries: number | null;
         };
         debug?: {
             findings_before_dedupe: number;
@@ -112,14 +124,41 @@ async function loadJsonLines(filePath: string): Promise<unknown[]> {
     return parsed;
 }
 
-async function runCommand(args: string[], timeoutSeconds = 0): Promise<{ timedOut: boolean; exitCode: number }> {
-    if (DEBUG) console.debug(`Running command: ${args.join(" ")}`);
+async function outputExists(filePath: string): Promise<boolean> {
+    return Bun.file(filePath).exists();
+}
+
+function parsePositiveNumberEnv(name: string): number | null {
+    const raw = Bun.env[name];
+    if (!raw || !raw.trim().length) return null;
+
+    const value = Number.parseFloat(raw);
+    if (Number.isFinite(value) && value > 0) return value;
+
+    if (DEBUG) console.warn(`Ignoring invalid ${name} value: ${raw}`);
+    return null;
+}
+
+function parsePositiveIntegerEnv(name: string): number | null {
+    const value = parsePositiveNumberEnv(name);
+    return value === null ? null : Math.trunc(value);
+}
+
+function stderrTail(stderr: string): string {
+    const trimmed = stderr.trim();
+    if (trimmed.length <= STDERR_TAIL_CHARS) return trimmed;
+    return trimmed.slice(trimmed.length - STDERR_TAIL_CHARS);
+}
+
+async function runCommand(scanner: Scanner, args: string[], timeoutSeconds = 0): Promise<{ timedOut: boolean; exitCode: number; elapsedSeconds: number }> {
+    if (DEBUG) console.debug(`[${scanner}] starting: ${args.join(" ")}`);
 
     const proc = Bun.spawn(args, {
         stdout: "pipe",
         stderr: "pipe",
     });
 
+    const startedAt = performance.now();
     let timedOut = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (timeoutSeconds > 0) {
@@ -136,14 +175,17 @@ async function runCommand(args: string[], timeoutSeconds = 0): Promise<{ timedOu
     ]);
 
     if (timeoutId) clearTimeout(timeoutId);
+    const elapsedSeconds = Number(((performance.now() - startedAt) / 1000).toFixed(3));
 
-    /* not helpful
     if (DEBUG) {
-        if (stdout.trim().length) console.debug(stdout.trim());
-        if (stderr.trim().length) console.debug(stderr.trim());
+        const tail = stderrTail(stderr);
+        console.debug(
+            `[${scanner}] finished in ${elapsedSeconds}s exit=${exitCode} timed_out=${timedOut} stdout_bytes=${stdout.length} stderr_bytes=${stderr.length}`
+        );
+        if (tail.length) console.debug(`[${scanner}] stderr tail:\n${tail}`);
     }
-    */
-    return { timedOut, exitCode };
+
+    return { timedOut, exitCode, elapsedSeconds };
 }
 
 function parseNuclei(rows: unknown[], findings: SecurityFinding[]) {
@@ -227,6 +269,25 @@ function parseTemplateInput(input: string): string[] {
         .filter(Boolean);
 }
 
+function countWapitiFindings(wapitiRaw: unknown): number {
+    if (!wapitiRaw || Array.isArray(wapitiRaw) || typeof wapitiRaw !== "object") return 0;
+
+    const data = wapitiRaw as Record<string, unknown>;
+    const vulnerabilities = (data.vulnerabilities ?? {}) as Record<string, unknown>;
+    return Object.values(vulnerabilities).reduce<number>(
+        (sum, details) => sum + (Array.isArray(details) ? details.length : 0),
+        0,
+    );
+}
+
+function countNiktoFindings(niktoRaw: unknown): number {
+    if (!niktoRaw || Array.isArray(niktoRaw) || typeof niktoRaw !== "object") return 0;
+
+    const data = niktoRaw as Record<string, unknown>;
+    const vulnerabilities = data.vulnerabilities;
+    return Array.isArray(vulnerabilities) ? vulnerabilities.length : 0;
+}
+
 function normalizeText(input: string | null | undefined): string {
     return (input ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 }
@@ -306,18 +367,34 @@ async function main() {
     const niktoOutput = join(workDir, "nikto_scan.json");
 
     const nucleiTemplates = parseTemplateInput(Bun.env.SECURITY_NUCLEI_TEMPLATES ?? "");
+    const nucleiTimeout = parsePositiveIntegerEnv("SECURITY_NUCLEI_TIMEOUT");
+    const nucleiRetries = parsePositiveIntegerEnv("SECURITY_NUCLEI_RETRIES");
+    const wapitiMaxScanTime = parsePositiveNumberEnv("SECURITY_WAPITI_MAX_SCAN_TIME");
+    const wapitiMaxAttackTime = parsePositiveNumberEnv("SECURITY_WAPITI_MAX_ATTACK_TIME");
+    const niktoRequestTimeout = parsePositiveIntegerEnv("SECURITY_NIKTO_REQUEST_TIMEOUT");
+
     const nucleiArgs = ["nuclei", "-target", website, "-jsonl", "-o", nucleiOutput];
     if (nucleiTemplates.length) {
         for (const template of nucleiTemplates) {
             nucleiArgs.push("-t", template);
         }
     }
+    if (nucleiTimeout !== null) nucleiArgs.push("-timeout", String(nucleiTimeout));
+    if (nucleiRetries !== null) nucleiArgs.push("-retries", String(nucleiRetries));
 
-    const niktoTimeout = Number.parseInt(Bun.env.SECURITY_NIKTO_TIMEOUT ?? "900", 10);
+    const wapitiArgs = ["wapiti", "-u", website, "-o", wapitiOutput, "-f", "json"];
+    if (wapitiMaxScanTime !== null) wapitiArgs.push("--max-scan-time", String(wapitiMaxScanTime));
+    if (wapitiMaxAttackTime !== null) wapitiArgs.push("--max-attack-time", String(wapitiMaxAttackTime));
+
+    const niktoArgs = ["nikto", "-h", website, "-Tuning", "124356bc", "-Format", "json", "-o", niktoOutput];
+    if (website.startsWith("https://")) niktoArgs.push("-ssl");
+    if (niktoRequestTimeout !== null) niktoArgs.push("-timeout", String(niktoRequestTimeout));
+
+    const niktoTimeout = parsePositiveIntegerEnv("SECURITY_NIKTO_TIMEOUT") ?? 900;
     const [nucleiRun, wapitiRun, niktoRun] = await Promise.all([
-        runCommand(nucleiArgs),
-        runCommand(["wapiti", "-u", website, "-o", wapitiOutput, "-f", "json"]),
-        runCommand(["nikto", "-h", website, "-Tuning", "124356bc", "-Format", "json", "-o", niktoOutput], niktoTimeout),
+        runCommand("nuclei", nucleiArgs),
+        runCommand("wapiti", wapitiArgs),
+        runCommand("nikto", niktoArgs, niktoTimeout),
     ]);
 
     if (niktoRun.timedOut && DEBUG) {
@@ -328,6 +405,11 @@ async function main() {
     const nucleiRaw = await loadJsonLines(nucleiOutput);
     const wapitiRaw = await loadJson(wapitiOutput);
     const niktoRaw = await loadJson(niktoOutput);
+    const [nucleiOutputExists, wapitiOutputExists, niktoOutputExists] = await Promise.all([
+        outputExists(nucleiOutput),
+        outputExists(wapitiOutput),
+        outputExists(niktoOutput),
+    ]);
 
     parseNuclei(nucleiRaw, findings);
     parseWapiti(wapitiRaw, findings);
@@ -383,10 +465,35 @@ async function main() {
                 wapiti: wapitiRun.exitCode,
                 nikto: niktoRun.exitCode,
             },
+            scanner_metrics: {
+                nuclei: {
+                    elapsed_seconds: nucleiRun.elapsedSeconds,
+                    timed_out: nucleiRun.timedOut,
+                    output_exists: nucleiOutputExists,
+                    output_items: nucleiRaw.length,
+                },
+                wapiti: {
+                    elapsed_seconds: wapitiRun.elapsedSeconds,
+                    timed_out: wapitiRun.timedOut,
+                    output_exists: wapitiOutputExists,
+                    output_items: countWapitiFindings(wapitiRaw),
+                },
+                nikto: {
+                    elapsed_seconds: niktoRun.elapsedSeconds,
+                    timed_out: niktoRun.timedOut,
+                    output_exists: niktoOutputExists,
+                    output_items: countNiktoFindings(niktoRaw),
+                },
+            },
             config: {
                 target: website,
                 nuclei_templates: nucleiTemplates,
                 nikto_timeout_seconds: niktoTimeout,
+                nikto_request_timeout_seconds: niktoRequestTimeout,
+                wapiti_max_scan_time_seconds: wapitiMaxScanTime,
+                wapiti_max_attack_time_seconds: wapitiMaxAttackTime,
+                nuclei_timeout_seconds: nucleiTimeout,
+                nuclei_retries: nucleiRetries,
             },
             ...(DEBUG ? {
                 debug: {

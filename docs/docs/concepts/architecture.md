@@ -63,6 +63,11 @@ Queue statuses:
 
 - `pending`, `waiting`, `processing`, `completed`, `failed`, `canceled`
 
+Queue/container maintenance (orchestrator):
+
+- daily queue retention cleanup removes `job_queue` rows older than `JOB_QUEUE_RETENTION` days (default `365`)
+- startup orphan cleanup removes managed tool containers labeled `com.hesperida.managed=true`
+
 ## Web Service Modes
 
 `APP_MODE` controls routing:

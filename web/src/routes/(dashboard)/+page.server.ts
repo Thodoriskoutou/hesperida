@@ -101,7 +101,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		const websiteTotals = await queryOne<{ total?: number; verified?: number }>(
 			db,
-			'SELECT count() AS total, count(verified_at IS NOT NONE) AS verified FROM websites GROUP ALL;'
+			'SELECT count() AS total, count(verification_id IS NOT NONE) AS verified FROM websites GROUP ALL;'
 		);
 
 		const seo = await buildScoreStats(db, 'seo_results');
@@ -181,7 +181,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const toolUsage = Array.from(toolCounts.entries())
 			.map(([tool, count]) => ({ tool, count }))
 			.sort((a, b) => b.count - a.count);
-
 
 		const verified = Number(websiteTotals?.verified ?? 0);
 		const total = Number(websiteTotals?.total ?? 0);

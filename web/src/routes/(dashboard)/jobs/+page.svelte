@@ -9,11 +9,12 @@
 	import * as Table from '$lib/components/ui/table';
 	import MultiSelect, { type Option } from 'svelte-multiselect';
 	import { setFilterParam } from '$lib/filter';
-	import { formatDate } from '$lib/utils.js';
+	import { formatDate, shareJob } from '$lib/utils.js';
 
 	let { data } = $props();
 	let statusFilter = $derived<'all' | 'pending' | 'processing' | 'completed' | 'failed'>((data.initialFilter ?? 'all') as 'all' | 'pending' | 'processing' | 'completed' | 'failed');
 	let selectedWebsite = $state<Option | null>(null);
+	const publicDashboardUrl = $derived(String(data.publicDashboardUrl ?? '').replace(/\/+$/, ''));
 
 	const optionValue = (option: Option | null | undefined): string => {
 		if (option == null) return '';
@@ -143,6 +144,11 @@
 												<a href={`/jobs/${job.id}`} {...props}>View</a>
 											{/snippet}
 										</DropdownMenu.Item>
+										{#if job.status === 'completed'}
+											<DropdownMenu.Item onclick={() => void shareJob(publicDashboardUrl, job)} class="cursor-pointer">
+												Share
+											</DropdownMenu.Item>
+										{/if}
 										<DropdownMenu.Item>
 											{#snippet child({ props })}
 												<a href={`/schedule/new?website_id=${job.website_id}`} {...props}>Add schedule</a>

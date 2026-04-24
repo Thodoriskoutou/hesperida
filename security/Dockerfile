@@ -9,8 +9,7 @@ RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go install github.com/pr
 
 FROM alpine/git AS nikto-builder
 
-RUN mkdir /nikto
-RUN git clone https://github.com/sullo/nikto.git /nikto
+RUN git clone --depth 1 https://github.com/sullo/nikto.git /nikto
 
 FROM oven/bun:debian
 
@@ -28,15 +27,17 @@ RUN apt-get update \
 COPY --from=nuclei-builder /go/bin/nuclei /usr/local/bin/nuclei
 COPY --from=nikto-builder /nikto/program /opt/nikto
 
-RUN chmod +x /opt/nikto/nikto.pl
-RUN ln -s /opt/nikto/nikto.pl /usr/local/bin/nikto
+RUN chmod +x /opt/nikto/nikto.pl \
+    && ln -s /opt/nikto/nikto.pl /usr/local/bin/nikto
 
 WORKDIR /app
+
+COPY ./security/package.json ./security/bun.lock /app/
+
+RUN bun install --frozen-lockfile --production --omit=peer
 
 ARG CACHE_BUST
 
 COPY ./security /app
-
-RUN bun install
 
 ENTRYPOINT ["bun", "/app/index.ts"]

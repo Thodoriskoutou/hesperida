@@ -3,6 +3,7 @@ import type { DateTime } from "surrealdb";
 import { twMerge } from "tailwind-merge";
 import { localeStore } from "./stores";
 import { get } from "svelte/store";
+import { toast } from 'svelte-sonner';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -35,3 +36,61 @@ export function formatDate(date?: DateTime | string, withTime: boolean = false):
 		}).format(nativeDate);
 	}
 }
+
+type ShareableJob = {
+	id: string;
+	website_url?: string;
+	created_at?: string | null;
+	status?: string;
+};
+
+export const copyToClipboard = async (value: string): Promise<void> => {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(value);
+		toast.success('Copied successfully.');
+		return;
+	}
+
+	const textarea = document.createElement('textarea');
+	textarea.value = value;
+	textarea.setAttribute('readonly', '');
+	textarea.style.position = 'fixed';
+	textarea.style.opacity = '0';
+	document.body.appendChild(textarea);
+	textarea.select();
+	try {
+		document.execCommand('copy');
+		toast.success('Copied successfully.');
+	} catch(e) {
+		toast.error('Copy failed.');
+	} finally {
+		document.body.removeChild(textarea);
+	}
+};
+
+export const shareJob = async (origin: string | null, job: ShareableJob): Promise<void> => {
+	const baseUrl = origin || window.location.origin;
+	const shareData = {
+		title: 'Hesperida Scan Results',
+		text: `${job.website_url || 'Website'} scanned at ${job.created_at ?? ''}`.trim(),
+		url: `${baseUrl}/jobs/${job.id}/pdf`
+	};
+	try {
+		if (typeof navigator.share === 'function' && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0)) {
+		// mobile only
+			try {
+				await navigator.share(shareData);
+				return;
+			} catch (error) {
+				if (error instanceof DOMException && error.name === 'AbortError') return;
+				await navigator.share({ url: shareData.url });
+				return;
+			}
+		}
+
+		await copyToClipboard(shareData.url ?? '');
+	} catch (error) {
+		if (error instanceof DOMException && error.name === 'AbortError') return;
+		await copyToClipboard(shareData.url ?? '');
+	}
+};

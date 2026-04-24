@@ -10,11 +10,10 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as InputGroup from '$lib/components/ui/input-group/index.js';
 	import { setFilterParam } from '$lib/filter';
-	import { formatDate } from '$lib/utils.js';
+	import { formatDate, copyToClipboard } from '$lib/utils.js';
 	import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
 	import type { WebsiteView } from '$lib/types/view.js';
 	import { createToastEnhance } from '$lib/form-toast';
-	import * as Popover from "$lib/components/ui/popover/index.js";
 
 	let { data, form } = $props();
 	let verificationFilter = $derived<'all' | 'verified' | 'unverified'>((data.initialFilter ?? 'all') as 'all' | 'verified' | 'unverified');
@@ -27,7 +26,6 @@
 	let verifyDialog = $state(false);
 	let verifyDialogWebsite: (WebsiteView & { txt_host?: string }) | undefined = $state();
 	let verifyDialogHost = $state('');
-	let copyPopover = $state(false);
 
 	const filteredWebsites = $derived.by(() => {
 		const websites = data.websites ?? [];
@@ -65,15 +63,6 @@
 	verifyDialogHost = website.txt_host ?? 'hesperida.<domain>';
 	verifyDialog = true;
   }
-
-  const copyToClipboard = async (value: string): Promise<void> => {
-	if (!value) return;
-	try {
-		await navigator.clipboard.writeText(value);
-	} catch {
-		// ignore clipboard errors
-	}
-  };
 
   const downloadEmptyFile = (fileName: string): void => {
 	if (!fileName) return;
@@ -251,12 +240,11 @@
 						readonly
 						value={verificationRecord}
 					/>
-					<InputGroup.Button>
-						<Popover.Root bind:open={copyPopover}>
-							<Popover.Trigger 
-								onclick={() => {copyToClipboard(verificationRecord);setTimeout(() => copyPopover = false, 1000)}}>Copy</Popover.Trigger>
-							<Popover.Content side="top" align="center" class="w-fit">Copied!</Popover.Content>
-						</Popover.Root>
+					<InputGroup.Button
+						type="button"
+						onclick={() => copyToClipboard(verificationRecord)}
+					>
+						Copy
 					</InputGroup.Button>
 				</InputGroup.Root>
 			</div>

@@ -67,12 +67,10 @@ DEFINE FIELD IF NOT EXISTS owner ON websites TYPE record<users> ASSERT record::e
 DEFINE FIELD IF NOT EXISTS url ON websites TYPE string ASSERT string::is_url($value);
 DEFINE FIELD IF NOT EXISTS users ON websites TYPE array<record<users>>;
 DEFINE FIELD IF NOT EXISTS verification_id ON websites TYPE option<record<website_verifications>>;
-DEFINE FIELD IF NOT EXISTS verified_at ON websites TYPE option<datetime>;
 
 DEFINE INDEX IF NOT EXISTS url_idx ON websites FIELDS url UNIQUE;
 DEFINE INDEX IF NOT EXISTS owner_websites_idx ON websites FIELDS owner;
 DEFINE INDEX IF NOT EXISTS users_websites_idx ON websites FIELDS users;
-DEFINE INDEX IF NOT EXISTS verified_at_websites_idx ON websites FIELDS verified_at;
 
 DEFINE EVENT OVERWRITE website_delete ON websites WHEN $event = 'DELETE' THEN {
 	DELETE jobs WHERE website = $before.id;

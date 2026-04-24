@@ -120,8 +120,6 @@ services:
       - "SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}"
       - "SESSION_COOKIE_MAX_AGE=${SESSION_COOKIE_MAX_AGE:-3600}"
       - "GOTENBERG_URL=${GOTENBERG_URL:-http://pdf:3000}"
-    ports:
-      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     healthcheck:
       test:
         [
@@ -132,6 +130,22 @@ services:
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    profiles: ["backend", "aio"]
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443/udp:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   apprise:
     restart: always
@@ -156,8 +170,6 @@ services:
     restart: always
     image: 'gotenberg/gotenberg:latest'
     profiles: ["backend", "aio"]
-    ports:
-      - "127.0.0.1:${PDF_PORT:-3000}:3000"
     healthcheck:
       interval: 60s
       test:
@@ -184,8 +196,6 @@ services:
       - "TZ=${TZ:-Europe/Athens}"
       - "DEBUG=${DEBUG:-false}"
     command: start
-    ports:
-      - 127.0.0.1:${DB_PORT:-8000}:8000 # remove "127.0.0.1:" to make it publically available, not recommended; better use a reverse proxy
     volumes:
       - hesperida-db-data:/mydata
     healthcheck:

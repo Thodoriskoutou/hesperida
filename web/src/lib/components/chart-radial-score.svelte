@@ -22,7 +22,7 @@
     }, {}) satisfies Chart.ChartConfig);
 </script>
 
-<Chart.Container config={chartConfig} class="mx-auto aspect-square max-h-[250px]">
+<Chart.Container config={chartConfig} class="mx-auto aspect-square max-h-62.5">
     <ArcChart
     label="tool"
     value="score"

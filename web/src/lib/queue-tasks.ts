@@ -17,6 +17,7 @@ export interface QueueTaskRow {
 	target: string;
 	status: QueueTaskStatus;
 	created_at: string;
+	result_created_at?: string | null;
 }
 
 export interface QueueTaskSnapshotEvent {

@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { produce } from 'sveltekit-sse';
 import { Surreal, Table } from 'surrealdb';
 import { config } from '$lib/server/config';
-import { mapQueueTaskRow } from '$lib/server/queue-tasks';
+import { mapQueueTaskRowWithResult } from '$lib/server/queue-tasks';
 import type { QueueTaskStreamEvent } from '$lib/queue-tasks';
 import { queryMany, queryOne } from '$lib/server/db';
 import { normalizeRecordId, toRouteId } from '$lib/server/record-id';
@@ -85,7 +85,8 @@ export const POST: RequestHandler = async ({ locals }) => {
 				return stop;
 			}
 
-			if (!emitEvent({ type: 'snapshot', tasks: initialRows.map(mapQueueTaskRow) })) {
+			const initialTasks = await Promise.all(initialRows.map((row) => mapQueueTaskRowWithResult(db, row)));
+			if (!emitEvent({ type: 'snapshot', tasks: initialTasks })) {
 				return stop;
 			}
 
@@ -122,7 +123,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 					emitEvent({
 						type: 'upsert',
-						task: mapQueueTaskRow(row),
+						task: await mapQueueTaskRowWithResult(db, row),
 					});
 				} catch {
 					stopWithLock();

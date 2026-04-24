@@ -77,9 +77,7 @@ export interface Website {
     users: RecordId<'users'>[];
     description: string;
     url: string;
-  verification_id?: RecordId<'website_verifications'>;
-  verified_at?: DateTime;
-  verification_method?: 'dns' | 'file' | null;
+    verification_id?: RecordId<'website_verifications'>;
     created_at?: DateTime;
 }
 

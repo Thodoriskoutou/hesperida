@@ -3,6 +3,7 @@ import { callDashboardApi, DashboardApiError } from '$lib/server/dashboard-api';
 import { parseAllowedFilter } from '$lib/server/filter';
 import { mapJobToView, toRouteIdString } from '$lib/server/dashboard-mappers';
 import type { ApiJob, ApiWebsite } from '$lib/types/api';
+import { config } from '$lib/server/config';
 
 type JobListRow = ReturnType<typeof mapJobToView> & {
 	website_url?: string;
@@ -34,12 +35,13 @@ export const load: PageServerLoad = async (event) => {
 				...mapJobToView(job),
 				website_url: websiteById.get(toRouteIdString(job.website)) ?? ''
 			})),
+			publicDashboardUrl: config.publicDashboardUrl || event.url.origin,
 			initialFilter,
 			error: null
 		};
 	} catch (error) {
 		if (error instanceof DashboardApiError) {
-			return { jobs: [], initialFilter, error: error.message };
+			return { jobs: [], publicDashboardUrl: config.publicDashboardUrl || event.url.origin, initialFilter, error: error.message };
 		}
 		throw error;
 	}

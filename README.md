@@ -72,13 +72,33 @@ You can change both later
 3. `docker compose --profile tools pull` to update all the tools docker images
 4. `docker compose --profile aio up -d` to start
 
+If you use the bundled Caddy setup, add `-f docker-compose-caddy.yaml` to the `down`, `pull`, and `up` commands.
+
+### Optional reverse proxy (Caddy)
+
+Most Docker deployments already have a reverse proxy. The default `docker-compose.yaml` does not include Caddy; it binds `web`, `db`, and `pdf` to localhost for local access or for an existing host-level proxy.
+
+If you want Hesperida to run its own Caddy container, use `docker-compose-caddy.yaml` instead. It only exposes Caddy on ports `80`, `443`, and `443/udp`; the other services stay private on the Compose network.
+
+For production:
+
+1. Point your DNS name at the Docker host.
+2. Replace `my.domain.com` in the root `Caddyfile`.
+3. Set `DASHBOARD_URL=https://your.domain`.
+4. Set `SESSION_COOKIE_SECURE=true`.
+5. Start with the Caddy Compose file:
+
+```bash
+docker compose -f docker-compose-caddy.yaml --profile aio up -d
+```
+
+The root `Caddyfile` also contains commented examples for exposing `pdf` and `apprise`, but those services normally stay private on the Compose network.
+
 ## Known bugs
 
 - Task execution reliability still needs tuning under heavy concurrency. Known culprits:
   1. Document locks on rocksdb can conflict with high parallel workloads (e.g. multiple `whois` tasks)
   2. Not enough resources, upgrade your host
-- There is no cleanup cron for the `job_queue` yet (TODO)
-- Orphan containers may be left behind if the orchestrator crashes. When I tried using `AutoRemove: true` in the container settings the containers exited before finishing. AFAIK it's a bug with Bun. This is not a big deal as they're not left running, but a cleanup cron will be needed for those as well. (TODO)
 
 ## Ideas
 
@@ -126,7 +146,7 @@ The more the merrier, but at least:
 
 - 2 CPU Cores / 4 threads (a.k.a. 4 vCores on a standard VPS)
 - 4GB RAM
-- 10GB of available Storage (9GB for the images + 1GB for the actual data)
+- 6GB of available Storage (5GB for the images + 1GB for the actual data)
 
 There is a distinction between light (CLI/Node tools) and heavy (full browsers) tool containers, and the orchestrator won't run more heavy containers than the available CPU threads.
 

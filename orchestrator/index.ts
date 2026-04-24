@@ -20,21 +20,135 @@ const DEBUG = Bun.env.DEBUG == "true";
 let RUNNERS = 0;
 const NUMCORES = navigator.hardwareConcurrency;
 const REBUILD = Bun.argv[2] == "--rebuild"
+const DEFAULT_JOB_QUEUE_RETENTION_DAYS = 365;
 const configuredAttempts = Number.parseInt(Bun.env.MAX_ATTEMPTS ?? '4', 10);
 const MAX_ATTEMPTS = Number.isFinite(configuredAttempts) ? Math.max(1, configuredAttempts) : 4;
+const configuredJobQueueRetention = Number.parseInt(
+	Bun.env.JOB_QUEUE_RETENTION ?? String(DEFAULT_JOB_QUEUE_RETENTION_DAYS),
+	10
+);
+const JOB_QUEUE_RETENTION_DAYS =
+	Number.isFinite(configuredJobQueueRetention) && configuredJobQueueRetention > 0
+		? configuredJobQueueRetention
+		: DEFAULT_JOB_QUEUE_RETENTION_DAYS;
 const RETRY_BACKOFF_MS = [5_000, 15_000, 45_000];
 const APPRISE_URL = Bun.env.APPRISE_URL?.trim() ?? '';
 const APPRISE_API_KEY = Bun.env.APPRISE_API_KEY?.trim() ?? '';
 const DASHBOARD_URL = Bun.env.DASHBOARD_URL?.trim() ?? '';
-const ENV = [`SURREAL_USER=${Bun.env.SURREAL_USER}`, `SURREAL_PASS=${Bun.env.SURREAL_PASS}`, `SURREAL_NAMESPACE=${Bun.env.SURREAL_NAMESPACE}`, `SURREAL_DATABASE=${Bun.env.SURREAL_DATABASE}`, `SURREAL_ADDRESS=${Bun.env.SURREAL_ADDRESS}`, `SURREAL_PROTOCOL=${Bun.env.SURREAL_PROTOCOL}`, `DEBUG=${Bun.env.DEBUG}`];
+const MANAGED_CONTAINER_LABEL = 'com.hesperida.managed';
+const MANAGED_CONTAINER_LABEL_VALUE = 'true';
+const DAILY_QUEUE_CLEANUP_CRON = '0 0 * * *';
+const BASE_TOOL_ENV_KEYS = [
+    'NODE_ENV',
+    'SURREAL_USER',
+    'SURREAL_PASS',
+    'SURREAL_NAMESPACE',
+    'SURREAL_DATABASE',
+    'SURREAL_ADDRESS',
+    'SURREAL_PROTOCOL',
+    'DEBUG'
+] as const;
+const TOOL_ENV_KEYS: Partial<Record<Tool, readonly string[]>> = {
+    security: [
+        'SECURITY_NUCLEI_TEMPLATES',
+        'SECURITY_NUCLEI_TIMEOUT',
+        'SECURITY_NUCLEI_RETRIES',
+        'SECURITY_NIKTO_TIMEOUT',
+        'SECURITY_NIKTO_REQUEST_TIMEOUT',
+        'SECURITY_WAPITI_MAX_SCAN_TIME',
+        'SECURITY_WAPITI_MAX_ATTACK_TIME',
+        'SECURITY_SCORE_THRESHOLD'
+    ],
+    stress: [
+        'STRESS_RATE',
+        'STRESS_DURATION',
+        'STRESS_METHOD',
+        'STRESS_TIMEOUT',
+        'STRESS_WORKERS',
+        'STRESS_MAX_WORKERS',
+        'STRESS_HEADERS',
+        'STRESS_BODY',
+        'STRESS_LATENCY_WARN_MS'
+    ],
+    wcag: [
+        'WCAG_RUN_ONLY',
+        'WCAG_EXCLUDE_RULES'
+    ]
+};
+const collectEnv = (keys: readonly string[]): string[] =>
+    keys.flatMap((key) => {
+        const value = Bun.env[key];
+        return typeof value === 'undefined' ? [] : [`${key}=${value}`];
+    });
+const getEnvKey = (entry: string): string => {
+    const separator = entry.indexOf('=');
+    return separator === -1 ? entry : entry.slice(0, separator);
+}
+const setEnvEntry = (env: string[], entry: string): void => {
+    const key = getEnvKey(entry);
+    if(!key) return;
+    const existingIndex = env.findIndex((value) => getEnvKey(value) === key);
+    if(existingIndex >= 0) env.splice(existingIndex, 1);
+    env.push(entry);
+}
+const mergeEnv = (...groups: string[][]): string[] => {
+    const env: string[] = [];
+    for (const group of groups) {
+        for (const entry of group) {
+            setEnvEntry(env, entry);
+        }
+    }
+    return env;
+}
+const BASE_TOOL_ENV = collectEnv(BASE_TOOL_ENV_KEYS);
 
 console.log('Hesperida Orchestrator starting...');
 
 const docker = new Dockerode({socketPath: '/var/run/docker.sock'});
 
 if (DEBUG) {
-    console.debug(`Docker environment variables: ${JSON.stringify(ENV)}`);
+    console.debug(`Base Docker environment variables: ${JSON.stringify(BASE_TOOL_ENV)}`);
 }
+
+if (
+	Bun.env.JOB_QUEUE_RETENTION &&
+	(!Number.isFinite(configuredJobQueueRetention) || configuredJobQueueRetention <= 0)
+) {
+	console.warn(
+		`Invalid JOB_QUEUE_RETENTION="${Bun.env.JOB_QUEUE_RETENTION}". Falling back to ${DEFAULT_JOB_QUEUE_RETENTION_DAYS} days.`
+	);
+}
+console.log(`Job queue retention set to ${JOB_QUEUE_RETENTION_DAYS} days.`);
+
+const removeManagedOrphanContainers = async (): Promise<void> => {
+	const removableStates = new Set(['created', 'exited', 'dead']);
+	let removed = 0;
+	const containers = await docker.listContainers({
+		all: true,
+		filters: {
+			label: [`${MANAGED_CONTAINER_LABEL}=${MANAGED_CONTAINER_LABEL_VALUE}`]
+		}
+	});
+
+	for (const container of containers) {
+		const state = String(container.State ?? '').toLowerCase();
+		if (!removableStates.has(state)) continue;
+		if (!container.Id?.length) continue;
+		try {
+			await docker.getContainer(container.Id).remove({ force: true });
+			removed += 1;
+			if (DEBUG) console.debug(`Removed orphan managed container ${container.Id.slice(0, 12)}.`);
+		} catch (error) {
+			console.error(`Failed to remove orphan managed container ${container.Id.slice(0, 12)}:`, error);
+		}
+	}
+
+	if (removed > 0) {
+		console.log(`Removed ${removed} orphan managed containers at startup.`);
+	} else if (DEBUG) {
+		console.debug('No orphan managed containers found at startup.');
+	}
+};
 
 for (const tool of tools) {
     let imageExists = false;
@@ -85,6 +199,11 @@ const resolveDockerNetwork = async (): Promise<string> => {
     return ''; // makes ts happy
 }
 const DOCKER_NETWORK = await resolveDockerNetwork();
+try {
+	await removeManagedOrphanContainers();
+} catch (error) {
+	console.error('Managed orphan container cleanup failed at startup:', error);
+}
 
 const db = new Surreal();
 await db.connect(`${Bun.env.SURREAL_PROTOCOL === 'https' ? 'wss': 'ws'}://${Bun.env.SURREAL_ADDRESS}`, {
@@ -474,9 +593,40 @@ const bootstrapSchedules = async (): Promise<void> => {
 await bootstrapSchedules();
 await bootstrapJobStatuses();
 
+const cleanupOldQueueTasks = async (): Promise<void> => {
+	const cutoff = new DateTime(
+		new Date(Date.now() - JOB_QUEUE_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+	);
+	const [rows] = await db
+		.query<[{ total?: number }[]]>(
+			'SELECT count() AS total FROM job_queue WHERE created_at < $cutoff GROUP ALL;',
+			{ cutoff }
+		)
+		.collect();
+	const total = Number(rows?.[0]?.total ?? 0);
+	if (!total) {
+		if (DEBUG) console.debug('Daily job_queue cleanup found no expired tasks.');
+		return;
+	}
+	await db.query('DELETE job_queue WHERE created_at < $cutoff;', { cutoff }).collect();
+	console.log(`Daily job_queue cleanup removed ${total} tasks older than ${JOB_QUEUE_RETENTION_DAYS} days.`);
+};
+
+const queueCleanupTask = cron.schedule(
+	DAILY_QUEUE_CLEANUP_CRON,
+	() => {
+		void cleanupOldQueueTasks().catch((error) => {
+			console.error('Daily job_queue cleanup failed:', error);
+		});
+	},
+	{ timezone: 'UTC' }
+);
+
 process.on("beforeExit", async () => {
     console.log('Hesperida Orchestrator exiting gracefully...');
     clearInterval(waitingInterval);
+	queueCleanupTask.stop();
+	queueCleanupTask.destroy();
     for (const scheduleId of scheduleTasks.keys()) {
         stopScheduledTask(scheduleId);
     }
@@ -502,6 +652,11 @@ const parseTaskOptions = (options: Record<string, unknown>): string[] => {
         result.push(`${key}=${JSON.stringify(value)}`);
     }
     return result;
+}
+
+const getForwardedToolEnv = (tool: Tool | undefined): string[] => {
+    if(!tool) return [];
+    return collectEnv(TOOL_ENV_KEYS[tool] ?? []);
 }
 
 const getToolTaskOptions = (jobOptions: unknown, tool: Tool): Record<string, unknown> | undefined => {
@@ -568,10 +723,15 @@ const runTask = async (task: Partial<Queue>, task_id: RecordId | null, task_url:
 
     let runSuccessfully = false;
 
-    const Env = task.options ? [...ENV, ...parseTaskOptions(task.options)] : ENV;
+    const tool = task.type as Tool | undefined;
+    const Env = mergeEnv(
+        BASE_TOOL_ENV,
+        getForwardedToolEnv(tool),
+        task.options ? parseTaskOptions(task.options) : []
+    );
     let executionTarget = task.target ?? task_url;
     if(task.type === 'wcag') {
-        Env.push(`WCAG_DEVICE_NAME=${task.target}`);
+        setEnvEntry(Env, `WCAG_DEVICE_NAME=${task.target}`);
         executionTarget = task_url;
     }
 
@@ -579,6 +739,11 @@ const runTask = async (task: Partial<Queue>, task_id: RecordId | null, task_url:
         const container = await docker.createContainer({
             Image: `hesperida-${task.type}`,
             Cmd: [executionTarget, task.job!.toString()],
+            Labels: {
+                [MANAGED_CONTAINER_LABEL]: MANAGED_CONTAINER_LABEL_VALUE,
+                'com.hesperida.tool': String(task.type ?? ''),
+                'com.hesperida.job': String(task.job ?? '')
+            },
             HostConfig: {
                 NetworkMode: DOCKER_NETWORK,
                 IpcMode: task.type === 'wcag' ? 'host' : 'private'

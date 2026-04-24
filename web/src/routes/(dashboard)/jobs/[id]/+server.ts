@@ -47,7 +47,6 @@ export const POST: RequestHandler = async (event) => {
 
 	let gotenbergResponse: Response;
 	try {
-		console.log(config.gotenbergUrl);
 		gotenbergResponse = await fetch(
 			`${config.gotenbergUrl.replace(/\/+$/, '')}/forms/chromium/convert/url`,
 			{

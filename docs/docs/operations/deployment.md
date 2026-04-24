@@ -41,7 +41,7 @@ docker compose --profile tools pull
   docker compose --profile backend up -d
   ```
 
-5. Open the dashboard at `http://localhost:3000` (or your configured host/port).
+5. Open the dashboard at `http://localhost:3000` for local access, or at the domain configured in your reverse proxy.
 
 ## Bootstrap Superuser
 
@@ -61,12 +61,48 @@ docker compose --profile aio up -d
 
 For `backend` deployments, use the same flow but replace `aio` with `backend` where applicable.
 
+If you use the bundled Caddy setup, add `-f docker-compose-caddy.yaml` to the `down`, `pull`, and `up` commands.
+
 ## Runtime Notes
 
 - `web` and `orchestrator` are required in all active deployments.
 - `db` is required only when not using external SurrealDB.
 - `apprise` and `pdf` are part of backend profiles for notifications and PDF export.
+- `docker-compose-caddy.yaml` is an optional standalone Compose file for deployments that want bundled Caddy.
 - `tools` profile is used to pull/build scan worker images; those containers are not long-running services.
+
+## Reverse Proxy
+
+Most deployments should use their existing reverse proxy with `docker-compose.yaml` and proxy to the loopback dashboard port:
+
+```caddy
+my.domain.com {
+	reverse_proxy 127.0.0.1:3000
+}
+```
+
+If you want the bundled Caddy container, edit the root `Caddyfile` and replace `my.domain.com` with your real hostname:
+
+```caddy
+my.domain.com {
+	reverse_proxy web:3000
+}
+```
+
+Then set matching public URL/session values in `.env`:
+
+```env
+DASHBOARD_URL=https://my.domain.com
+SESSION_COOKIE_SECURE=true
+```
+
+Start the bundled Caddy stack with:
+
+```bash
+docker compose -f docker-compose-caddy.yaml --profile aio up -d
+```
+
+See [Reverse Proxy](./reverse-proxy.md) for the full guide.
 
 ## Environment Highlights
 
@@ -74,4 +110,5 @@ Start from `.env.example` and configure at least:
 
 - `SURREAL_*` connection/auth values
 - `WEB_API_KEY`
+- `DASHBOARD_URL`
 - `SMTP_*` (required for system emails: forgot password, invite, onboarding)

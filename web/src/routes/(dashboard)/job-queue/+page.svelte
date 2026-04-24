@@ -14,6 +14,7 @@
 	import { setFilterParam } from '$lib/filter';
 	import { createToastEnhance } from '$lib/form-toast';
 	import { formatDate } from '$lib/utils.js';
+	import { DateTime, Duration } from 'surrealdb';
 
 	let { data, form } = $props();
 	type QueueStatus = 'all' | 'pending' | 'waiting' | 'processing' | 'completed' | 'failed' | 'canceled';
@@ -40,10 +41,50 @@
 			website_url: String(task.website_url ?? '-'),
 			target: String(task.target ?? '-'),
 			status: task.status,
-			created_at: String(task.created_at ?? '')
+			created_at: String(task.created_at ?? ''),
+			result_created_at: task.result_created_at ? String(task.result_created_at) : null
 		}));
 		seededFromLoad = true;
 	});
+
+	const toDateTime = (value: unknown): DateTime | null => {
+		if (!value) return null;
+		if (value instanceof DateTime) return value;
+		try {
+			return new DateTime(String(value));
+		} catch {
+			return null;
+		}
+	};
+
+	const durationBetween = (startValue: unknown, endValue: unknown): Duration | null => {
+		const start = toDateTime(startValue);
+		const end = toDateTime(endValue);
+		if (!start || !end || end.compare(start) < 0) return null;
+		return end.diff(start);
+	};
+
+	const formatDuration = (duration: Duration | null): string => {
+		if (!duration) return '';
+		const totalSeconds = duration.seconds;
+		if (totalSeconds < 0n) return '';
+
+		const hours = totalSeconds / 3600n;
+		const minutes = (totalSeconds % 3600n) / 60n;
+		const seconds = totalSeconds % 60n;
+		const pad = (value: bigint) => value.toString().padStart(2, '0');
+
+		if (hours > 0n) return `${hours.toString()}h ${pad(minutes)}m`;
+		if (minutes > 0n) return `${minutes.toString()}m ${pad(seconds)}s`;
+		return `${seconds.toString()}s`;
+	};
+
+	const taskDuration = (task: QueueTaskRow): string => {
+		if (task.result_created_at) {
+			return formatDuration(durationBetween(task.created_at, task.result_created_at)) || '-';
+		}
+		return '-';
+	};
 
 	const sortByCreatedAt = (rows: QueueTaskRow[]): QueueTaskRow[] =>
 		[...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -202,12 +243,13 @@
 					<Table.Head class="text-left p-3">Target</Table.Head>
 					<Table.Head class="text-left p-3">Status</Table.Head>
 					<Table.Head class="text-left p-3">Created</Table.Head>
+					<Table.Head class="text-left p-3">Duration</Table.Head>
 					<Table.Head class="text-left p-3">Actions</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#if filteredTasks.length === 0}
-					<Table.Row><Table.Cell colspan={6} class="p-3 text-muted-foreground">No queue tasks found.</Table.Cell></Table.Row>
+					<Table.Row><Table.Cell colspan={7} class="p-3 text-muted-foreground">No queue tasks found.</Table.Cell></Table.Row>
 				{:else}
 					{#each filteredTasks as task (task.id)}
 						<Table.Row class="border-t">
@@ -220,6 +262,7 @@
 								<Badge variant={statusBadgeVariant(task.status)}>{task.status ?? '-'}</Badge>
 							</Table.Cell>
 							<Table.Cell class="p-3">{formatDate(task.created_at, true)}</Table.Cell>
+							<Table.Cell class="p-3">{taskDuration(task)}</Table.Cell>
 							<Table.Cell class="p-3">
 								<DropdownMenu.Root>
 									<DropdownMenu.Trigger>

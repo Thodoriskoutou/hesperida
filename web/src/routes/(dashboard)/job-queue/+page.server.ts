@@ -5,8 +5,58 @@ import { mapQueueTaskToView, toRouteIdString } from '$lib/server/dashboard-mappe
 import { parseAllowedFilter } from '$lib/server/filter';
 import { queueTaskStatuses, type QueueTaskStatus } from '$lib/queue-tasks';
 import type { ApiJob, ApiQueueTask, ApiWebsite } from '$lib/types/api';
+import type { Tool } from '$lib/types';
 
 type QueueTaskView = ReturnType<typeof mapQueueTaskToView>;
+type TimestampedResult = {
+	created_at?: string | null;
+	device?: string | null;
+};
+
+const latestResultCreatedAt = (results: TimestampedResult[]): string | null => {
+	let latest: TimestampedResult | null = null;
+	for (const result of results) {
+		if (!result?.created_at) continue;
+		if (!latest?.created_at || new Date(result.created_at).getTime() > new Date(latest.created_at).getTime()) {
+			latest = result;
+		}
+	}
+	return latest?.created_at ?? null;
+};
+
+const selectResultCreatedAt = (result: unknown, type: Tool, target: unknown): string | null => {
+	if (!result) return null;
+	if (Array.isArray(result)) {
+		const results = result.filter((entry): entry is TimestampedResult => !!entry && typeof entry === 'object');
+		if (type === 'wcag') {
+			const normalizedTarget = String(target ?? '').trim().toLowerCase();
+			const selected =
+				results.find((entry) => String(entry.device ?? '').trim().toLowerCase() === normalizedTarget) ??
+				results[0];
+			return selected?.created_at ?? null;
+		}
+		return latestResultCreatedAt(results);
+	}
+	if (typeof result === 'object') return (result as TimestampedResult).created_at ?? null;
+	return null;
+};
+
+const resolveTaskResultCreatedAt = async (
+	event: Parameters<PageServerLoad>[0],
+	task: ApiQueueTask,
+	jobRouteId: string
+): Promise<string | null> => {
+	if (!jobRouteId || !task.type) return null;
+	try {
+		const resultData = await callDashboardApi<{ tool: Tool; result: unknown }>(
+			event,
+			`/api/v1/results/jobs/${jobRouteId}/${task.type}`
+		);
+		return selectResultCreatedAt(resultData.result, task.type, task.target);
+	} catch {
+		return null;
+	}
+};
 
 export const load: PageServerLoad = async (event) => {
 	const rawFilter = event.url.searchParams.get('filter');
@@ -19,6 +69,7 @@ export const load: PageServerLoad = async (event) => {
 			(data.tasks ?? []).map(async (task) => {
 				const jobRouteId = toRouteIdString(task.job);
 				let websiteUrl = '-';
+				const resultCreatedAt = await resolveTaskResultCreatedAt(event, task, jobRouteId);
 
 				if (jobRouteId) {
 					try {
@@ -40,7 +91,7 @@ export const load: PageServerLoad = async (event) => {
 					}
 				}
 
-				return mapQueueTaskToView(task, websiteUrl);
+				return { ...mapQueueTaskToView(task, websiteUrl), result_created_at: resultCreatedAt };
 			})
 		);
 

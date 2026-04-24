@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.10.1] - 2026-04-24
+
+### Added
+
+- Job queue tasks automatic cleanup with configurable retention (default 1 year)
+- The orchestrator automatically removes orphaned tool containers during startup (only containers with version >=0.10.1)
+- Scan durations (total + per tool) visible in the dashboard
+- Optional `docker-compose-caddy.yaml` reverse proxy deployment guide
+- Job share link (shares/copies the `jobs/[id]/pdf` page url)
+
+### Changed
+
+- In the dashboard, the tools now have a centralised icon component
+- Production optimizations on all docker containers. Shaved off ~4GB of unneeded dependencies
+- Optimize Security scan run time, configurable via new environment variables
+- Expanded environment variable documentation
+
+### Fixed
+
+- The orchestrator wouldn't pass tool specific (probe/stress/security) environment variables to tool containers
+
 ## [0.10.0] - 2026-04-23
 
 ### Added

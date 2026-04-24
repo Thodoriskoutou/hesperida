@@ -6,8 +6,6 @@ WORKDIR /
 
 ARG CACHE_BUST
 
-COPY ./whois/entrypoint.sh /entrypoint.sh
-
-RUN chmod +x /entrypoint.sh
+COPY --chmod=755 ./whois/entrypoint.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
